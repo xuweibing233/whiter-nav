@@ -112,8 +112,8 @@
     const refs = getRefs();
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      window.showMessage?.('图片过大，请选择 2MB 以内的图片', 'error');
+    if (file.size > 10 * 1024 * 1024) {
+      window.showMessage?.('图片过大，请选择 10MB 以内的图片', 'error');
       return;
     }
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

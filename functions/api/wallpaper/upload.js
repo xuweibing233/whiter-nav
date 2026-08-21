@@ -2,7 +2,7 @@
 // 上传本地壁纸到 R2 存储桶（绑定名 NAV_IMG），原生二进制存储
 import { isAdminAuthenticated, errorResponse, jsonResponse } from '../../_middleware';
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = new Map([
   ['image/jpeg', 'image/jpeg'],
   ['image/png', 'image/png'],
