@@ -110,12 +110,16 @@ const FONT_KEYS = new Set([
 
 const URL_KEYS = new Set([
     'home_custom_font_url',
-    'layout_custom_wallpaper',
 ]);
 
 // favicon 允许 http/https 或站内相对路径（如 /favicon.png）
 const FAVICON_URL_KEYS = new Set([
     'home_site_favicon',
+]);
+
+// 壁纸允许 http/https 或站内相对路径（如 /api/wallpaper/file?id=xxx）
+const WALLPAPER_URL_KEYS = new Set([
+    'layout_custom_wallpaper',
 ]);
 
 function normalizeParsedCategoryPosition(position, menuLayout) {
@@ -207,6 +211,15 @@ export function normalizeSettingValueForStorage(key, value) {
             return { ok: true, value: text };
         }
         return { ok: false, message: `Invalid favicon URL for ${key}` };
+    }
+
+    if (WALLPAPER_URL_KEYS.has(key)) {
+        if (isEmptyOptionalValue(text)) return { ok: true, value: '' };
+        // 相对路径（/api/wallpaper/file?id=...）或 http/https 都放行
+        if (/^\/[^/]/.test(text) || /^(?:https?:)?\/\//i.test(text)) {
+            return { ok: true, value: text };
+        }
+        return { ok: false, message: `Invalid wallpaper URL for ${key}` };
     }
 
     if (key === 'layout_grid_cols' && !['4', '5', '6', '7'].includes(text)) {

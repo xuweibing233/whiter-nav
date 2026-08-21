@@ -23,6 +23,7 @@
     refs.customWallpaperInput.classList.add('bg-green-50');
     setTimeout(() => refs.customWallpaperInput.classList.remove('bg-green-50'), 300);
     ns.preview?.scheduleFullPreviewRender?.();
+    window.showMessage?.('已填入壁纸，请点击底部「保存设置」生效', 'info');
   }
 
   function renderList(items) {

@@ -115,4 +115,7 @@ test('normalizeSettingValueForStorage validates style and enum settings', () => 
   assert.deepEqual(normalizeSettingValueForStorage('home_footer_text', '自定义页脚'), { ok: true, value: '自定义页脚' });
   assert.equal(normalizeSettingValueForStorage('home_category_flow', 'wrap').ok, false);
   assert.equal(normalizeSettingValueForStorage('layout_custom_wallpaper', 'javascript:alert(1)').ok, false);
+  assert.deepEqual(normalizeSettingValueForStorage('layout_custom_wallpaper', '/api/wallpaper/file?id=abc-123'), { ok: true, value: '/api/wallpaper/file?id=abc-123' });
+  assert.deepEqual(normalizeSettingValueForStorage('home_site_favicon', '/custom-favicon.png'), { ok: true, value: '/custom-favicon.png' });
+  assert.equal(normalizeSettingValueForStorage('home_site_favicon', 'javascript:alert(1)').ok, false);
 });

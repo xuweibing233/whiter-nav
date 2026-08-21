@@ -442,7 +442,13 @@ export async function onRequest(context) {
   }
 
   // 背景层 HTML
-  const safeWallpaperUrl = sanitizeUrl(resolvedWallpaperUrl);
+  // 壁纸 URL 允许站内相对路径（本地上传的 /api/wallpaper/file?id=...），
+  // sanitizeUrl 只放行 http/https，这里单独放行相对路径
+  const rawWallpaperUrl = String(resolvedWallpaperUrl || '').trim();
+  const safeWallpaperUrl = rawWallpaperUrl
+    && (/^https?:\/\//i.test(rawWallpaperUrl) || /^\/[^/]/.test(rawWallpaperUrl))
+    ? rawWallpaperUrl
+    : '';
   const defaultBgColor = '#fdf8f3';
   let bgLayerHtml = '';
   if (safeWallpaperUrl) {

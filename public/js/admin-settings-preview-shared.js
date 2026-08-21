@@ -82,6 +82,8 @@ const loadedFonts = new Set();
  function normalizePreviewUrl(value) {
     const text = String(value ?? '').trim();
     if (!text) return '';
+    // 站内相对路径（如 /api/wallpaper/file?id=...）放行
+    if (/^\/[^/]/.test(text)) return text;
     try {
       const parsed = new URL(text);
       return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : '';
