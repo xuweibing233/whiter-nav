@@ -102,6 +102,20 @@ export async function onRequestPost(context) {
     await env.NAV_AUTH.put(`${FAVICON_PREFIX}${id}`, payload);
     await env.NAV_AUTH.put(`${FAVICON_PREFIX}current`, payload);
 
+    // 清理历史旧图：只保留 current 和刚写入的新 id，避免 KV key 无限累积
+    try {
+      const { keys } = await env.NAV_AUTH.list({ prefix: FAVICON_PREFIX });
+      const staleKeys = (keys || [])
+        .map(k => k.name)
+        .filter(name => name !== `${FAVICON_PREFIX}current` && name !== `${FAVICON_PREFIX}${id}`);
+      if (staleKeys.length > 0) {
+        await Promise.all(staleKeys.map(key => env.NAV_AUTH.delete(key)));
+      }
+    } catch (e) {
+      // 清理失败不影响上传结果，仅记录日志
+      console.warn('Favicon stale cleanup failed:', e);
+    }
+
     // 返回站内相对路径（favicon 设置已支持相对路径）
     return jsonResponse({
       code: 201,
