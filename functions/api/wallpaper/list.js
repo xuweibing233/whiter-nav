@@ -1,8 +1,8 @@
 // functions/api/wallpaper/list.js
-// 列出已上传的本地壁纸（认证后可用）
+// 列出已上传的本地壁纸（认证后可用），从 R2 读取
 import { isAdminAuthenticated, errorResponse, jsonResponse } from '../../_middleware';
 
-const WALLPAPER_PREFIX = 'wallpaper_';
+const WALLPAPER_PREFIX = 'wallpaper/';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -11,12 +11,18 @@ export async function onRequestGet(context) {
     return errorResponse('Unauthorized', 401);
   }
 
+  if (!env.NAV_IMG) {
+    return errorResponse('R2 bucket not configured', 500);
+  }
+
   try {
-    const { keys } = await env.NAV_AUTH.list({ prefix: WALLPAPER_PREFIX });
-    const items = (keys || []).map(key => ({
-      id: key.name.slice(WALLPAPER_PREFIX.length),
-      url: `/api/wallpaper/file?id=${key.name.slice(WALLPAPER_PREFIX.length)}`,
-      name: key.name,
+    // 递归列出 wallpaper/ 前缀下所有对象（R2 list 默认返回 1000 条以内）
+    const listed = await env.NAV_IMG.list({ prefix: WALLPAPER_PREFIX });
+    const items = (listed.objects || []).map(obj => ({
+      id: obj.key.slice(WALLPAPER_PREFIX.length),
+      url: `/api/wallpaper/file?id=${obj.key.slice(WALLPAPER_PREFIX.length)}`,
+      name: obj.key,
+      size: obj.size,
     }));
 
     return jsonResponse({ code: 200, data: items });

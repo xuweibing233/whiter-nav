@@ -25,6 +25,13 @@ database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
 binding = "NAV_AUTH"
 id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
 
+# 壁纸 / favicon 上传存储（Cloudflare R2 存储桶）
+# 控制台 → R2 → 创建存储桶（如 nav-images）→ Pages 项目设置 → 绑定 → R2 存储桶
+# 变量名必须为 NAV_IMG，指向你创建的存储桶
+[[r2_buckets]]
+binding = "NAV_IMG"
+bucket_name = "nav-images"
+
 [vars]
 ENABLE_PUBLIC_SUBMISSION = false
 SITE_NAME = "灰色轨迹"

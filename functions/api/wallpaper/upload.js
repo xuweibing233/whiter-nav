@@ -1,9 +1,8 @@
 // functions/api/wallpaper/upload.js
-// 上传本地壁纸：认证后接收图片文件，以二进制直接存入 KV（wallpaper_<uuid>）
-// Content-Type 存入 KV metadata；读取用 getWithMetadata + arrayBuffer
+// 上传本地壁纸到 R2 存储桶（绑定名 NAV_IMG），原生二进制存储
 import { isAdminAuthenticated, errorResponse, jsonResponse } from '../../_middleware';
 
-const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = new Map([
   ['image/jpeg', 'image/jpeg'],
   ['image/png', 'image/png'],
@@ -16,6 +15,11 @@ export async function onRequestPost(context) {
 
   if (!(await isAdminAuthenticated(request, env))) {
     return errorResponse('Unauthorized', 401);
+  }
+
+  // R2 绑定必须存在
+  if (!env.NAV_IMG) {
+    return errorResponse('R2 bucket not configured (bind NAV_IMG)', 500);
   }
 
   try {
@@ -32,16 +36,18 @@ export async function onRequestPost(context) {
 
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength > MAX_SIZE) {
-      return errorResponse('Image too large (max 2MB)', 400);
+      return errorResponse('Image too large (max 5MB)', 400);
     }
     if (buffer.byteLength === 0) {
       return errorResponse('Empty file', 400);
     }
 
     const id = crypto.randomUUID();
-    const key = `wallpaper_${id}`;
-    // 二进制直接存 KV，Content-Type 走 metadata，避免大图 base64 字符串导致的解码问题
-    await env.NAV_AUTH.put(key, buffer, { metadata: { ct: contentType } });
+    const key = `wallpaper/${id}`;
+    // R2 原生二进制存储，Content-Type 存 httpMetadata
+    await env.NAV_IMG.put(key, buffer, {
+      httpMetadata: { contentType },
+    });
 
     return jsonResponse({
       code: 201,

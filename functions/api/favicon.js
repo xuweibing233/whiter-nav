@@ -1,8 +1,7 @@
 // functions/api/favicon.js
-// 站点 favicon 上传与读取（单值覆盖式：新上传替换旧图标）
+// 站点 favicon 上传与读取（单值覆盖式，存 R2，绑定名 NAV_IMG）
 // POST /api/favicon            → 上传（认证 + CSRF），返回 { url }
 // GET  /api/favicon            → 读取当前图标（公开）
-// DELETE /api/favicon?id=<id>  → 删除指定图标
 import { isAdminAuthenticated, errorResponse, jsonResponse } from '../_middleware';
 
 const MAX_SIZE = 512 * 1024; // favicon 512KB 足够
@@ -15,44 +14,28 @@ const ALLOWED_TYPES = new Map([
   ['image/webp', 'image/webp'],
 ]);
 
-const FAVICON_PREFIX = 'site_favicon_';
+const FAVICON_KEY = 'favicon/current';
 
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-// 读取当前/指定 favicon
+// 读取当前 favicon
 export async function onRequestGet(context) {
   const { request, env } = context;
-  const url = new URL(request.url);
-  const id = (url.searchParams.get('id') || '').trim();
-  const key = id && /^[a-zA-Z0-9-]+$/.test(id)
-    ? `${FAVICON_PREFIX}${id}`
-    : `${FAVICON_PREFIX}current`;
+
+  if (!env.NAV_IMG) {
+    return errorResponse('R2 bucket not configured', 500);
+  }
 
   try {
-    const raw = await env.NAV_AUTH.get(key, { type: 'json' });
-    if (!raw || !raw.data) {
+    const obj = await env.NAV_IMG.get(FAVICON_KEY);
+    if (!obj) {
       return new Response('Not found', { status: 404 });
     }
-    return new Response(base64ToArrayBuffer(raw.data), {
+
+    const contentType = obj.httpMetadata?.contentType || 'image/png';
+    const buffer = await obj.arrayBuffer();
+
+    return new Response(buffer, {
       headers: {
-        'Content-Type': raw.ct || 'image/png',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400, immutable',
         'Access-Control-Allow-Origin': '*',
       },
@@ -63,12 +46,16 @@ export async function onRequestGet(context) {
   }
 }
 
-// 上传 favicon（覆盖式：写入 current + 新 id 两个 key，旧的 current 之前 id 会被列表清理）
+// 上传 favicon（覆盖式：直接写入 favicon/current）
 export async function onRequestPost(context) {
   const { request, env } = context;
 
   if (!(await isAdminAuthenticated(request, env))) {
     return errorResponse('Unauthorized', 401);
+  }
+
+  if (!env.NAV_IMG) {
+    return errorResponse('R2 bucket not configured', 500);
   }
 
   try {
@@ -91,39 +78,17 @@ export async function onRequestPost(context) {
       return errorResponse('Empty file', 400);
     }
 
-    const id = crypto.randomUUID();
-    const payload = JSON.stringify({
-      data: arrayBufferToBase64(buffer),
-      ct: ALLOWED_TYPES.get(contentType),
-      at: Date.now(),
+    // 覆盖式写入 R2
+    await env.NAV_IMG.put(FAVICON_KEY, buffer, {
+      httpMetadata: { contentType: ALLOWED_TYPES.get(contentType) },
     });
 
-    // 写入新 id + current（current 供 SSR/首页读取）
-    await env.NAV_AUTH.put(`${FAVICON_PREFIX}${id}`, payload);
-    await env.NAV_AUTH.put(`${FAVICON_PREFIX}current`, payload);
-
-    // 清理历史旧图：只保留 current 和刚写入的新 id，避免 KV key 无限累积
-    try {
-      const { keys } = await env.NAV_AUTH.list({ prefix: FAVICON_PREFIX });
-      const staleKeys = (keys || [])
-        .map(k => k.name)
-        .filter(name => name !== `${FAVICON_PREFIX}current` && name !== `${FAVICON_PREFIX}${id}`);
-      if (staleKeys.length > 0) {
-        await Promise.all(staleKeys.map(key => env.NAV_AUTH.delete(key)));
-      }
-    } catch (e) {
-      // 清理失败不影响上传结果，仅记录日志
-      console.warn('Favicon stale cleanup failed:', e);
-    }
-
-    // 返回站内相对路径（favicon 设置已支持相对路径）
     return jsonResponse({
       code: 201,
       data: {
-        id,
-        url: `/api/favicon?id=${id}`,
+        url: '/api/favicon',
         currentUrl: '/api/favicon',
-        contentType,
+        contentType: ALLOWED_TYPES.get(contentType),
         size: buffer.byteLength,
       },
       message: 'Favicon uploaded',
@@ -131,35 +96,5 @@ export async function onRequestPost(context) {
   } catch (e) {
     console.error('Favicon upload failed:', e);
     return errorResponse(`Failed to upload: ${e.message}`, 500);
-  }
-}
-
-// 删除 favicon
-export async function onRequestDelete(context) {
-  const { request, env } = context;
-
-  if (!(await isAdminAuthenticated(request, env))) {
-    return errorResponse('Unauthorized', 401);
-  }
-
-  try {
-    const url = new URL(request.url);
-    const id = (url.searchParams.get('id') || '').trim();
-
-    if (!id || !/^[a-zA-Z0-9-]+$/.test(id)) {
-      return errorResponse('Invalid id', 400);
-    }
-
-    const key = `${FAVICON_PREFIX}${id}`;
-    const exists = await env.NAV_AUTH.get(key);
-    if (!exists) {
-      return errorResponse('Favicon not found', 404);
-    }
-
-    await env.NAV_AUTH.delete(key);
-    return jsonResponse({ code: 200, message: 'Favicon deleted' });
-  } catch (e) {
-    console.error('Favicon delete failed:', e);
-    return errorResponse(`Failed to delete: ${e.message}`, 500);
   }
 }
