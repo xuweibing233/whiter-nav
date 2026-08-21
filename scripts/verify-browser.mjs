@@ -42,12 +42,40 @@ try {
   const tooltipText = tooltipVisible ? await page.locator('.site-desc-tooltip .tooltip-desc').textContent() : '';
   check('hover 浮层显示', tooltipVisible === 1, tooltipText ? tooltipText.slice(0, 30) + '...' : '');
 
-  // 5. 浮层跟随视口边界：移到右下角卡片
-  const lastCard = page.locator('.site-card').last();
+  // 5. 浮层跟随视口边界：移到右下角卡片（选有描述的卡片，Notion 有描述）
+  const lastCard = page.locator('.site-card', { hasText: 'Notion' });
   await lastCard.hover({ position: { x: 5, y: 5 } });
   await page.waitForTimeout(400);
   const box = await page.locator('.site-desc-tooltip.visible').boundingBox();
   check('浮层不溢出视口', box ? (box.x >= 0 && box.x + box.width <= 1280) : false, box ? `left=${Math.round(box.x)} right=${Math.round(box.x + box.width)}` : '无浮层');
+
+  // 5a. 浮层显示期间，卡片内原生 title 应被抑制（避免名称+描述两个提示）
+  const titleAttrOnHover = await page.evaluate(() => {
+    const card = Array.from(document.querySelectorAll('.site-card:not(.hidden)')).find(c => c.textContent.includes('Notion'));
+    const h3 = card?.querySelector('h3');
+    return h3 ? h3.getAttribute('title') : 'no-h3';
+  });
+  check('hover 时原生 title 被抑制', titleAttrOnHover === null, `title=${titleAttrOnHover}`);
+
+  // 5b. 移开卡片后，原生 title 应恢复
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(400);
+  const titleAfterLeave = await page.evaluate(() => {
+    const card = document.querySelector('.site-card');
+    const h3 = card?.querySelector('h3');
+    return h3 ? h3.getAttribute('title') : 'no-h3';
+  });
+  check('移开后原生 title 恢复', titleAfterLeave !== null, `title=${titleAfterLeave}`);
+
+  // 5c. 从有描述卡片移到无描述卡片：浮层应隐藏（bug 回归测试）
+  await page.locator('.site-card').first().hover();
+  await page.waitForTimeout(300);
+  const tooltipBefore = await page.locator('.site-desc-tooltip.visible').count();
+  const noDescCard = page.locator('.site-card', { hasText: '无描述站点' });
+  await noDescCard.hover();
+  await page.waitForTimeout(300);
+  const tooltipAfter = await page.locator('.site-desc-tooltip.visible').count();
+  check('移到无描述卡片浮层隐藏', tooltipBefore === 1 && tooltipAfter === 0, `before=${tooltipBefore} after=${tooltipAfter}`);
 
   // 6. / 快捷键聚焦搜索框（选可见的输入框）
   await page.keyboard.press('/');

@@ -38,17 +38,47 @@
       tooltip.style.top = `${top}px`;
     }
 
+    // 临时禁用卡片内所有原生 title（避免与自定义浮层同时弹出两个提示）
+    function suppressNativeTitles(card) {
+      card.querySelectorAll('[title]').forEach(el => {
+        if (el.dataset.origTitle === undefined) {
+          el.dataset.origTitle = el.getAttribute('title') || '';
+          el.removeAttribute('title');
+        }
+      });
+    }
+
+    // 恢复被禁用的原生 title
+    function restoreNativeTitles(card) {
+      if (!card) return;
+      card.querySelectorAll('[data-orig-title]').forEach(el => {
+        if (el.dataset.origTitle) el.setAttribute('title', el.dataset.origTitle);
+        delete el.dataset.origTitle;
+      });
+    }
+
     function showTooltip(card) {
       const site = sitesById.get(String(card.getAttribute('data-id')));
-      if (!site || !site.hasDesc || !site.descHtml) return;
+      // 无描述（或数据缺失）的卡片：隐藏浮层，避免上一张卡片的浮层残留
+      if (!site || !site.hasDesc || !site.descHtml) {
+        hideTooltip();
+        return;
+      }
+
+      // 从上一张卡片切换过来时，先恢复上一张的原生 title
+      if (activeCard && activeCard !== card) {
+        restoreNativeTitles(activeCard);
+      }
 
       activeCard = card;
+      suppressNativeTitles(card);
       tooltip.innerHTML = `<span class="tooltip-title">${site.nameHtml}</span><span class="tooltip-desc">${site.descHtml}</span>`;
       tooltip.classList.add('visible');
       requestAnimationFrame(positionTooltip);
     }
 
     function hideTooltip() {
+      restoreNativeTitles(activeCard);
       activeCard = null;
       tooltip.classList.remove('visible');
       if (rafId) {
@@ -59,7 +89,12 @@
 
     sitesGrid.addEventListener('mouseover', (e) => {
       const card = e.target.closest('.site-card');
-      if (!card) return;
+      // 移到卡片间隙/空白处：隐藏浮层（与「移到无描述卡片」同样处理，避免残留）
+      if (!card) {
+        clearTimeout(hideTimer);
+        hideTooltip();
+        return;
+      }
       if (card === activeCard) return;
       clearTimeout(hideTimer);
       showTooltip(card);
