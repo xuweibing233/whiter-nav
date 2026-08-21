@@ -1,8 +1,18 @@
 // functions/api/wallpaper/file.js
-// 读取已上传的本地壁纸图片（公开访问，按 KV 存的内容类型返回）
+// 读取已上传的本地壁纸图片（公开访问）
+// value 格式：{ data: base64, ct: contentType, at: timestamp }
 import { errorResponse } from '../../_middleware';
 
 const WALLPAPER_PREFIX = 'wallpaper_';
+
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -15,17 +25,14 @@ export async function onRequestGet(context) {
 
   try {
     const key = `${WALLPAPER_PREFIX}${id}`;
-    const value = await env.NAV_AUTH.get(key, { type: 'arrayBuffer' });
-    if (!value) {
+    const raw = await env.NAV_AUTH.get(key, { type: 'json' });
+    if (!raw || !raw.data) {
       return new Response('Not found', { status: 404 });
     }
 
-    const meta = await env.NAV_AUTH.getWithMetadata(key);
-    const contentType = meta?.metadata?.contentType || 'image/jpeg';
-
-    return new Response(value, {
+    return new Response(base64ToArrayBuffer(raw.data), {
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': raw.ct || 'image/jpeg',
         'Cache-Control': 'public, max-age=86400, immutable',
         'Access-Control-Allow-Origin': '*',
       },

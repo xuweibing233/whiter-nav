@@ -45,10 +45,46 @@
         </div>
         <div class="wp-card-overlay">
           <span class="wp-card-btn">应用</span>
-        </div>`;
+        </div>
+        <button type="button" class="wp-card-delete"
+          title="删除这张壁纸"
+          style="position:absolute;top:4px;right:4px;z-index:5;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;">×</button>`;
+      div.querySelector('.wp-card-delete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteWallpaper(item.id, div);
+      });
+      div.addEventListener('mouseenter', () => {
+        const btn = div.querySelector('.wp-card-delete');
+        if (btn) btn.style.opacity = '1';
+      });
+      div.addEventListener('mouseleave', () => {
+        const btn = div.querySelector('.wp-card-delete');
+        if (btn) btn.style.opacity = '0';
+      });
       div.addEventListener('click', () => applyWallpaper(item.url));
       refs.uploadedDiv.appendChild(div);
     });
+  }
+
+  async function deleteWallpaper(id, cardEl) {
+    if (!confirm('确定删除这张壁纸吗？')) return;
+
+    try {
+      const res = await fetch(`/api/wallpaper/delete?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        window.showMessage?.('壁纸已删除', 'success');
+        loadUploaded();
+      } else {
+        window.showMessage?.(data.message || '删除失败', 'error');
+      }
+    } catch (e) {
+      console.error('Delete wallpaper failed:', e);
+      window.showMessage?.('删除失败（网络错误）', 'error');
+    }
   }
 
   async function loadUploaded() {
@@ -133,5 +169,6 @@
     init,
     loadUploaded,
     applyWallpaper,
+    deleteWallpaper,
   };
 })();

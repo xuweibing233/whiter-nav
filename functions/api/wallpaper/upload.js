@@ -10,6 +10,16 @@ const ALLOWED_TYPES = new Map([
   ['image/gif', 'image/gif'],
 ]);
 
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -39,8 +49,13 @@ export async function onRequestPost(context) {
 
     const id = crypto.randomUUID();
     const key = `wallpaper_${id}`;
-    // KV 存原始字节，读取时按 Content-Type 返回
-    await env.NAV_AUTH.put(key, buffer, { metadata: { contentType } });
+    // contentType 存进 value 本身（base64 + 类型），不依赖 KV metadata，
+    // 避免 getWithMetadata 取不到类型导致浏览器无法渲染图片
+    await env.NAV_AUTH.put(key, JSON.stringify({
+      data: arrayBufferToBase64(buffer),
+      ct: contentType,
+      at: Date.now(),
+    }));
 
     return jsonResponse({
       code: 201,
