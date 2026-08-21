@@ -11,6 +11,7 @@
 
     Home.initSubmission?.();
     Home.initSearch?.();
+    Home.initSearchShortcut?.();
     Home.initCategoryNavigation?.();
 
     requestAnimationFrame(() => {

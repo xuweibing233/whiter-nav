@@ -57,6 +57,7 @@ const HTML_FILES = {
     { file: 'public/js/wallpaper-defaults.js', pattern: /\/js\/wallpaper-defaults\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-form.js', pattern: /\/js\/admin-settings-form\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-core.js', pattern: /\/js\/admin-settings-core\.js\?v=[a-zA-Z0-9]+/ },
+    { file: 'public/js/admin-settings-search-engines.js', pattern: /\/js\/admin-settings-search-engines\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-preview-shared.js', pattern: /\/js\/admin-settings-preview-shared\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-preview-data.js', pattern: /\/js\/admin-settings-preview-data\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-preview-nav.js', pattern: /\/js\/admin-settings-preview-nav\.js\?v=[a-zA-Z0-9]+/ },

@@ -242,8 +242,59 @@
       if (e.target === addSiteModal) closeModal();
     });
 
+    // URL 字段：失焦时自动补全 https://，提交前前端校验
+    const addSiteUrlInput = document.getElementById('addSiteUrl');
+    const autoCompleteUrl = () => {
+      if (!addSiteUrlInput) return;
+      let value = addSiteUrlInput.value.trim();
+      if (!value) return;
+      // 已带协议或非 http/https 开头（如 javascript:、mailto:）则不处理
+      if (/^(https?:\/\/|javascript:|mailto:|tel:|data:)/i.test(value)) return;
+      // 明显非法字符（空格等）不自动补全，交给提交校验提示
+      if (/\s/.test(value)) return;
+      // 补全协议后再校验合法性
+      const candidate = 'https://' + value;
+      try {
+        new URL(candidate);
+        addSiteUrlInput.value = candidate;
+      } catch {
+        // 补全后仍非法，保持原值，由提交校验提示
+      }
+    };
+    addSiteUrlInput?.addEventListener('blur', autoCompleteUrl);
+
     addSiteForm?.addEventListener('submit', async function (e) {
       e.preventDefault();
+
+      // 提交前 URL 校验：必填 + 合法 http/https
+      if (addSiteUrlInput) {
+        autoCompleteUrl();
+        const rawUrl = addSiteUrlInput.value.trim();
+        if (!rawUrl) {
+          showAddSiteMessage('请填写网址。', 'warning');
+          addSiteUrlInput.focus();
+          return;
+        }
+        let parsedUrl = null;
+        try {
+          parsedUrl = new URL(rawUrl);
+        } catch {
+          showAddSiteMessage('网址格式不正确，请检查后重试（例如 https://example.com）。', 'error');
+          addSiteUrlInput.focus();
+          return;
+        }
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          showAddSiteMessage('仅支持 http / https 协议的网址。', 'error');
+          addSiteUrlInput.focus();
+          return;
+        }
+        // new URL 会把空格编码成 %20 而不报错，但用户输入带空格/中文空格显然是无效域名
+        if (/\s/.test(rawUrl) || !parsedUrl.hostname.includes('.')) {
+          showAddSiteMessage('网址格式不正确，请填写有效域名（例如 https://example.com）。', 'error');
+          addSiteUrlInput.focus();
+          return;
+        }
+      }
 
       await ensureSubmissionTurnstile();
 

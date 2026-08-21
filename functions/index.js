@@ -227,12 +227,20 @@ export async function onRequest(context) {
   const allLinkActive = !catalogExists;
   const allLinkClass = allLinkActive ? 'active' : 'inactive';
   const allLinkActiveMarker = allLinkActive ? 'nav-item-active' : '';
-  const horizontalAllLink = `
+  const defaultCat = (S.home_default_category || '').trim();
+  const showAllTab = !defaultCat || defaultCat.toLowerCase() === 'all';
+  const horizontalAllLink = showAllTab ? `
     <div class="menu-item-wrapper relative inline-block text-left">
       <a href="?catalog=all" class="nav-btn ${allLinkClass} ${allLinkActiveMarker}">全部</a>
-    </div>`;
+    </div>` : '';
   const horizontalCatalogMarkup = horizontalAllLink + renderHorizontalMenu(rootCategories, currentCatalogName);
-  const catalogLinkMarkup = renderVerticalMenu(rootCategories, currentCatalogName, isCustomWallpaper);
+  const verticalAllLink = showAllTab ? `<a href="?catalog=all" class="flex items-center px-3 py-2 rounded-lg ${catalogExists ? 'true' : 'false'} w-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span class="text-gray-700 dark:text-gray-200">全部</span>
+          </a>` : '';
+  const catalogLinkMarkup = verticalAllLink + renderVerticalMenu(rootCategories, currentCatalogName, isCustomWallpaper);
 
   // === 10. 生成站点卡片 HTML ===
   let sitesGridMarkup = sites.length > 0
@@ -269,6 +277,7 @@ export async function onRequest(context) {
   const siteName = S.home_site_name || env.SITE_NAME || '灰色轨迹';
   const siteDescription = S.home_site_description || env.SITE_DESCRIPTION || '一个优雅、快速、易于部署的书签（网址）收藏与分享平台，完全基于 Cloudflare 全家桶构建';
   const footerText = S.home_footer_text || env.FOOTER_TEXT || '曾梦想仗剑走天涯';
+  const footerGithubUrl = S.home_footer_github_url || 'https://github.com/xuweibing233/whiter-nav';
   const titleStyle = getStyleStr(S.home_title_size, S.home_title_color, S.home_title_font);
   const subtitleStyle = getStyleStr(S.home_subtitle_size, S.home_subtitle_color, S.home_subtitle_font);
   const statsStyle = getStyleStr(S.home_stats_size, S.home_stats_color, S.home_stats_font);
@@ -279,12 +288,33 @@ export async function onRequest(context) {
   const statsRowHiddenClass = shouldRenderStatsRow ? '' : 'hidden';
 
   // === 13. 搜索引擎选项 ===
+  // 默认引擎列表（settings 未配置时使用）；URL 模板用 {q} 占位查询词
+  const DEFAULT_SEARCH_ENGINES = [
+    { id: 'google', label: 'Google', url: 'https://www.google.com/search?q={q}' },
+    { id: 'baidu', label: 'Baidu', url: 'https://www.baidu.com/s?wd={q}' },
+    { id: 'github', label: 'Github', url: 'https://github.com/search?q={q}' },
+  ];
+  let searchEngines = DEFAULT_SEARCH_ENGINES;
+  try {
+    const configured = JSON.parse(S.home_search_engines || '[]');
+    if (Array.isArray(configured) && configured.length > 0) {
+      searchEngines = configured
+        .map(e => ({
+          id: String(e?.id || '').trim(),
+          label: String(e?.label || '').trim(),
+          url: String(e?.url || '').trim(),
+        }))
+        .filter(e => e.id && e.url && e.url.includes('{q}'));
+      if (searchEngines.length === 0) searchEngines = DEFAULT_SEARCH_ENGINES;
+    }
+  } catch (e) {
+    console.warn('Invalid home_search_engines setting:', e);
+  }
   const searchEngineOptions = S.home_search_engine_enabled ? `
-    <div class="flex justify-center items-center gap-3 mb-4 text-sm select-none search-engine-wrapper">
+    <div class="flex justify-center items-center gap-3 mb-4 text-sm select-none search-engine-wrapper" data-search-engines='${escapeHTML(JSON.stringify(searchEngines))}'>
         <label class="search-engine-option active" data-engine="local"><span>站内</span></label>
-        <label class="search-engine-option" data-engine="google"><span>Google</span></label>
-        <label class="search-engine-option" data-engine="baidu"><span>Baidu</span></label>
-        <label class="search-engine-option" data-engine="github"><span>Github</span></label>
+        ${searchEngines.map(engine => `
+        <label class="search-engine-option" data-engine="${escapeHTML(engine.id)}" data-engine-url="${escapeHTML(engine.url)}"><span>${escapeHTML(engine.label)}</span></label>`).join('')}
     </div>` : '';
 
   // === 14. Header HTML ===
@@ -565,6 +595,7 @@ export async function onRequest(context) {
     'CANONICAL_URL': escapeHTML(canonicalUrl),
     'OG_IMAGE_URL': escapeHTML(ogImageUrl),
     'FOOTER_TEXT': escapeHTML(footerText),
+    'FOOTER_GITHUB_URL': escapeHTML(footerGithubUrl),
     'CATALOG_EXISTS': catalogExists ? 'true' : 'false',
     'CATALOG_LINKS': catalogLinkMarkup,
     'SUBMISSION_CLASS': submissionClass,

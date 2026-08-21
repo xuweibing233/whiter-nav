@@ -1,6 +1,98 @@
 (function () {
   const Home = window.IoriHome = window.IoriHome || {};
 
+  // 卡片描述浮层：鼠标悬停卡片时，在光标附近展示完整描述
+  // - 事件委托到 #sitesGrid，SSR 初始卡片与客户端重绘卡片都生效
+  // - 仅当站点有真实描述（hasDesc）时显示；style3/隐藏描述等场景也能兜底
+  function initDescTooltip(sitesGrid) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'site-desc-tooltip';
+    document.body.appendChild(tooltip);
+
+    let activeCard = null;
+    let mouseX = 0;
+    let mouseY = 0;
+    let hideTimer = null;
+    let rafId = null;
+
+    const sitesById = new Map();
+    (window.IORI_SITES || []).forEach(s => sitesById.set(String(s.id), s));
+
+    function positionTooltip() {
+      if (!activeCard) return;
+      const offset = 14;
+      let left = mouseX + offset;
+      let top = mouseY + offset;
+
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      if (left + tw + 8 > vw) left = mouseX - tw - offset;
+      if (top + th + 8 > vh) top = mouseY - th - offset;
+      if (left < 6) left = 6;
+      if (top < 6) top = 6;
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function showTooltip(card) {
+      const site = sitesById.get(String(card.getAttribute('data-id')));
+      if (!site || !site.hasDesc || !site.descHtml) return;
+
+      activeCard = card;
+      tooltip.innerHTML = `<span class="tooltip-title">${site.nameHtml}</span><span class="tooltip-desc">${site.descHtml}</span>`;
+      tooltip.classList.add('visible');
+      requestAnimationFrame(positionTooltip);
+    }
+
+    function hideTooltip() {
+      activeCard = null;
+      tooltip.classList.remove('visible');
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    sitesGrid.addEventListener('mouseover', (e) => {
+      const card = e.target.closest('.site-card');
+      if (!card) return;
+      if (card === activeCard) return;
+      clearTimeout(hideTimer);
+      showTooltip(card);
+    });
+
+    sitesGrid.addEventListener('mousemove', (e) => {
+      if (!activeCard) return;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(positionTooltip);
+    });
+
+    sitesGrid.addEventListener('mouseleave', () => {
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(hideTooltip, 120);
+    });
+
+    // 卡片可能被隐藏/移除（如搜索过滤），此时应关闭浮层
+    if (typeof MutationObserver !== 'undefined') {
+      const observer = new MutationObserver(() => {
+        if (activeCard && !activeCard.isConnected) hideTooltip();
+      });
+      observer.observe(sitesGrid, { childList: true, subtree: true });
+
+      return () => {
+        observer.disconnect();
+        tooltip.remove();
+      };
+    }
+    return () => { tooltip.remove(); };
+  }
+
   Home.createCardController = function () {
     const initialCards = document.querySelectorAll('.site-card.card-anim-enter');
     const sitesGrid = document.getElementById('sitesGrid');
@@ -304,6 +396,8 @@
       initialCards.forEach((card) => {
         bindCardAnimationCleanup(card);
       });
+
+      if (sitesGrid) initDescTooltip(sitesGrid);
 
       mobileCardQuery?.addEventListener('change', () => {
         syncCardConfigForViewport();

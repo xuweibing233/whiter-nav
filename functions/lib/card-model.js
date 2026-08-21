@@ -1,5 +1,37 @@
 import { escapeHTML, sanitizeUrl } from './utils';
 
+// 已知的外部 favicon 服务：这些 URL 是后台「自动生成图标」时写入的，
+// 渲染时统一改走本地代理 /api/icon?url=<domain>，避免每次页面加载都直连外部图标服务
+const FAVICON_SERVICE_PATTERNS = [
+  /faviconsnap\.com/i,
+  /favicon\.im/i,
+  /faviconextractor\.com/i,
+  /google\.com\/s2\/favicons/i,
+];
+
+function extractDomainFromUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+// 将 logo URL 归一化为本地代理地址；用户自填的 logo 保留原样
+function resolveLogoProxyUrl(logoUrl, siteUrl) {
+  if (!logoUrl) return '';
+  if (logoUrl.startsWith('data:')) return logoUrl;
+
+  const isFaviconService = FAVICON_SERVICE_PATTERNS.some(pattern => pattern.test(logoUrl));
+  if (isFaviconService) {
+    // 从站点 URL 提取域名（更可靠），失败时回退从 logo URL 提取
+    const domain = extractDomainFromUrl(siteUrl) || extractDomainFromUrl(logoUrl);
+    if (domain) return `/api/icon?url=${encodeURIComponent(domain)}`;
+  }
+  return logoUrl;
+}
+
 function buildSearchText(site, normalizedUrl) {
   return [
     site?.name,
@@ -88,6 +120,7 @@ export function buildCardViewModel(site) {
   const normalizedLogo = sanitizeUrl(site?.logo);
   const rawCatalog = site?.catelog_name || site?.catelog || '未分类';
   const rawDesc = site?.desc || '暂无描述';
+  const logoProxyUrl = resolveLogoProxyUrl(normalizedLogo, normalizedUrl);
 
   return {
     id: site?.id,
@@ -95,9 +128,10 @@ export function buildCardViewModel(site) {
     nameHtml: escapeHTML(rawName),
     catalogHtml: escapeHTML(rawCatalog),
     descHtml: escapeHTML(rawDesc),
+    hasDesc: Boolean(site?.desc && String(site.desc).trim()),
     urlHtml: escapeHTML(normalizedUrl),
     displayUrlHtml: escapeHTML(normalizedUrl || '未提供链接'),
-    logoUrlHtml: escapeHTML(normalizedLogo),
+    logoUrlHtml: escapeHTML(logoProxyUrl),
     cardInitialHtml: escapeHTML((rawName.trim().charAt(0) || '站').toUpperCase()),
     hasValidUrl: Boolean(normalizedUrl),
     searchText: buildSearchText(site, normalizedUrl),

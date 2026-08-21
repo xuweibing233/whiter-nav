@@ -164,6 +164,50 @@ html.dark body.custom-wallpaper .sidebar {
 }
 
 /* 3. 卡片基础与悬停样式 */
+/* 卡片描述浮层（鼠标跟随 tooltip） */
+.site-desc-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 340px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.95) translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.dark .site-desc-tooltip {
+  background: #1f2937;
+  border-color: #374151;
+  color: #d1d5db;
+}
+.site-desc-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translateY(0);
+}
+.site-desc-tooltip .tooltip-title {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #0f172a;
+}
+.dark .site-desc-tooltip .tooltip-title {
+  color: #f9fafb;
+}
+.site-desc-tooltip .tooltip-desc {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 .site-card {
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
               box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),

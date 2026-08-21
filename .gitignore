@@ -5,6 +5,7 @@ Thumbs.db
 node_modules/
 .wrangler/
 wrangler.toml
+.local-preview/
 
 # Husky internal files
 .husky/_

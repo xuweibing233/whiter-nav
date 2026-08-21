@@ -9,6 +9,7 @@
     window.AdminSettings.wallpaper?.init?.();
     window.AdminSettings.ai?.init?.();
     window.AdminSettings.backup?.init?.();
+    window.AdminSettings.searchEngines?.init?.();
     window.AdminSettings.core?.init?.();
   };
 

@@ -118,16 +118,45 @@
     const hitokotoContainer = document.querySelector('#hitokoto')?.parentElement;
     if (!hitokotoContainer || hitokotoContainer.classList.contains('hidden')) return;
 
+    const hitokotoEl = document.getElementById('hitokoto_text');
+    if (!hitokotoEl) return;
+
+    // 1. 优先展示 localStorage 缓存（立即显示，减少空白时间）
+    try {
+      const cached = localStorage.getItem('iori_hitokoto_cache');
+      if (cached) {
+        const { text, uuid } = JSON.parse(cached);
+        if (text) {
+          hitokotoEl.href = `https://hitokoto.cn/?uuid=${uuid || ''}`;
+          hitokotoEl.innerText = text;
+        }
+      }
+    } catch (e) { /* 缓存损坏时静默忽略 */ }
+
+    // 2. 异步请求新数据，成功后更新缓存 + 界面
     fetch('https://v1.hitokoto.cn', { signal: AbortSignal.timeout(3000) })
       .then(res => res.json())
       .then(data => {
-        const hitokoto = document.getElementById('hitokoto_text');
-        if (hitokoto) {
-          hitokoto.href = `https://hitokoto.cn/?uuid=${data.uuid}`;
-          hitokoto.innerText = data.hitokoto;
+        if (data.hitokoto) {
+          hitokotoEl.href = `https://hitokoto.cn/?uuid=${data.uuid}`;
+          hitokotoEl.innerText = data.hitokoto;
+          // 写入缓存，TTL 由调用方控制（下次页面刷新时读取）
+          try {
+            localStorage.setItem('iori_hitokoto_cache', JSON.stringify({
+              text: data.hitokoto,
+              uuid: data.uuid,
+              time: Date.now()
+            }));
+          } catch (e) { /* localStorage 满时静默忽略 */ }
         }
       })
-      .catch(console.error);
+      .catch(() => {
+        // 3. 请求失败时兜底：如果连缓存都没有，用 SSR 已有的占位
+        // （SSR 已经渲染了 HITOKOTO_CONTENT，无需额外操作）
+        if (!hitokotoEl.innerText || hitokotoEl.innerText === hitokotoEl.getAttribute('data-fallback')) {
+          // 保持 SSR 内容不变
+        }
+      });
   }
 
   function initThemeToggle() {

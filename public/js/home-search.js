@@ -43,15 +43,88 @@
       const normalizedKeyword = String(keyword || '').toLowerCase().trim();
       const cached = getSearchCardCache();
 
+      let visibleCount = 0;
       cached.forEach(({ el, text }) => {
-        if (normalizedKeyword === '' || text.includes(normalizedKeyword)) {
-          el.classList.remove('hidden');
-        } else {
-          el.classList.add('hidden');
-        }
+        const matches = normalizedKeyword === '' || text.includes(normalizedKeyword);
+        el.classList.toggle('hidden', !matches);
+        if (matches) visibleCount++;
+        highlightMatches(el, normalizedKeyword);
       });
 
       updateHeading(normalizedKeyword);
+      updateNoResultState(visibleCount);
+    }
+
+    // 无结果空状态：搜索无命中时展示提示（不会在「全部」无书签时误报）
+    function updateNoResultState(visibleCount) {
+      const grid = document.getElementById('sitesGrid');
+      if (!grid) return;
+      const existing = grid.querySelector('.search-empty-state');
+      const keyword = getCurrentLocalSearchKeyword();
+
+      if (keyword && visibleCount === 0) {
+        if (!existing) {
+          const empty = document.createElement('div');
+          empty.className = 'search-empty-state col-span-full flex flex-col items-center justify-center py-14 text-center';
+          empty.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-3 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <p class="text-gray-400 dark:text-gray-500 text-sm">没有找到与「<span class="text-gray-600 dark:text-gray-300 font-medium"></span>」相关的书签</p>
+          `;
+          empty.querySelector('span').textContent = keyword;
+          grid.appendChild(empty);
+        } else {
+          existing.querySelector('span').textContent = keyword;
+        }
+      } else if (existing) {
+        existing.remove();
+      }
+    }
+
+    // 关键词高亮：命中文字包裹 <mark>，搜索后清除旧高亮
+    function highlightMatches(el, keyword) {
+      if (!el) return;
+      el.querySelectorAll('mark').forEach(m => {
+        const parent = m.parentNode;
+        if (parent) parent.replaceChild(document.createTextNode(m.textContent), m);
+        parent.normalize();
+      });
+
+      if (!keyword) return;
+      const textNodes = getTextNodes(el);
+      textNodes.forEach(node => {
+        const text = node.nodeValue;
+        if (!text) return;
+        const lower = text.toLowerCase();
+        const idx = lower.indexOf(keyword);
+        if (idx === -1) return;
+        const fragment = document.createDocumentFragment();
+        if (idx > 0) fragment.appendChild(document.createTextNode(text.slice(0, idx)));
+        const mark = document.createElement('mark');
+        mark.className = 'bg-amber-200/80 dark:bg-amber-500/40 rounded px-0.5 text-inherit';
+        mark.textContent = text.slice(idx, idx + keyword.length);
+        fragment.appendChild(mark);
+        if (idx + keyword.length < text.length) {
+          fragment.appendChild(document.createTextNode(text.slice(idx + keyword.length)));
+        }
+        node.parentNode.replaceChild(fragment, node);
+      });
+    }
+
+    function getTextNodes(root) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: node => {
+          const parent = node.parentNode;
+          if (parent && (parent.nodeName === 'SCRIPT' || parent.nodeName === 'STYLE' || parent.nodeName === 'MARK')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      return nodes;
     }
 
     function reapplyLocalSearchFilter() {
@@ -68,11 +141,9 @@
       });
 
       let placeholder = '搜索书签...';
-      switch (engine) {
-        case 'google': placeholder = 'Google 搜索...'; break;
-        case 'baidu': placeholder = '百度搜索...'; break;
-        case 'github': placeholder = 'Github 搜索...'; break;
-      }
+      const activeOption = Array.from(engineOptions).find(opt => opt.dataset.engine === engine);
+      const activeLabel = activeOption?.querySelector('span')?.textContent?.trim();
+      if (activeLabel) placeholder = `${activeLabel} 搜索...`;
 
       searchInputs.forEach(input => {
         input.placeholder = placeholder;
@@ -156,13 +227,12 @@
           e.preventDefault();
           const query = this.value.trim();
           if (query) {
-            let url = '';
-            switch (currentSearchEngine) {
-              case 'google': url = `https://www.google.com/search?q=${encodeURIComponent(query)}`; break;
-              case 'baidu': url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`; break;
-              case 'github': url = `https://github.com/search?q=${encodeURIComponent(query)}`; break;
+            const option = Array.from(engineOptions).find(opt => opt.dataset.engine === currentSearchEngine);
+            const urlTemplate = option?.dataset.engineUrl;
+            if (urlTemplate) {
+              const url = urlTemplate.replace('{q}', encodeURIComponent(query));
+              window.open(url, '_blank');
             }
-            if (url) window.open(url, '_blank');
           }
         }
       });
@@ -170,4 +240,29 @@
 
     updateHeading();
   };
+
+  // 「/」快捷键聚焦搜索框（不在输入框/文本域/可编辑区域时生效）
+  function initSearchShortcut() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target;
+      const isTyping = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+      if (isTyping) return;
+
+      // 页面存在两个搜索框（移动端竖版 hidden / 桌面横版），只聚焦可见的那个
+      const inputs = Array.from(document.querySelectorAll('.search-input-target'));
+      const visible = inputs.find(input => input.offsetParent !== null);
+      if (!visible) return;
+
+      e.preventDefault();
+      visible.focus();
+      visible.select();
+    });
+  }
+
+  Home.initSearchShortcut = initSearchShortcut;
 })();

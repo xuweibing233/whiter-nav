@@ -40,6 +40,7 @@
     'home_site_name',
     'home_site_description',
     'home_footer_text',
+    'home_footer_github_url',
     'home_default_category',
     'home_category_position',
     'home_category_flow',
@@ -81,6 +82,11 @@
     'webdav_dir',
   ];
 
+  // JSON 字符串字段：空串是有效值（服务端给什么就是什么），需要原样回填
+  const JSON_STRING_FIELDS = [
+    'home_search_engines',
+  ];
+
   const MOBILE_FALLBACK_FIELDS = [
     ['mobile_layout_hide_category', 'layout_hide_category'],
     ['mobile_layout_enable_frosted_glass', 'layout_enable_frosted_glass'],
@@ -117,6 +123,7 @@
       home_hitokoto_color: '',
       home_hide_admin: false,
       home_search_engine_enabled: false,
+      home_search_engines: '',
       home_default_category: '',
       home_remember_last_category: false,
       home_title_font: '',
@@ -126,6 +133,7 @@
       home_site_name: '',
       home_site_description: '',
       home_footer_text: '',
+      home_footer_github_url: '',
       home_category_position: 'below_search',
       home_category_flow: 'single_line',
       layout_enable_frosted_glass: false,
@@ -204,6 +212,12 @@
     });
 
     DEFINED_STRING_FIELDS.forEach(field => {
+      if (serverSettings[field] !== undefined) {
+        targetSettings[field] = serverSettings[field];
+      }
+    });
+
+    JSON_STRING_FIELDS.forEach(field => {
       if (serverSettings[field] !== undefined) {
         targetSettings[field] = serverSettings[field];
       }

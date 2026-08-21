@@ -31,7 +31,9 @@ export const SETTINGS_SCHEMA = {
     home_site_name: { default: '', type: 'string' },
     home_site_description: { default: '', type: 'string' },
     home_footer_text: { default: '', type: 'string' },
+    home_footer_github_url: { default: '', type: 'string' },
     home_search_engine_enabled: { default: false, type: 'bool' },
+    home_search_engines: { default: '', type: 'string' },
     home_default_category: { default: '', type: 'string' },
     home_remember_last_category: { default: false, type: 'bool' },
     home_category_position: { default: 'below_search', type: 'string' },
@@ -267,6 +269,31 @@ export function normalizeSettingValueForStorage(key, value) {
 
     if (key === 'wallpaper_cid_360' && text && !/^\d{1,8}$/.test(text)) {
         return { ok: false, message: 'Invalid wallpaper_cid_360' };
+    }
+
+    if (key === 'home_search_engines') {
+        if (text === '') return { ok: true, value: '' };
+        if (text.length > 4000) {
+            return { ok: false, message: 'Search engines list too long' };
+        }
+        try {
+            const parsed = JSON.parse(text);
+            if (!Array.isArray(parsed)) {
+                return { ok: false, message: 'Invalid search engines list' };
+            }
+            const valid = parsed.every(e =>
+                e && typeof e === 'object' &&
+                typeof e.id === 'string' && e.id.trim() &&
+                typeof e.label === 'string' && e.label.trim() &&
+                typeof e.url === 'string' && e.url.includes('{q}')
+            );
+            if (!valid) {
+                return { ok: false, message: 'Invalid search engine entry (id/label/url with {q} required)' };
+            }
+            return { ok: true, value: text };
+        } catch (e) {
+            return { ok: false, message: 'Invalid search engines JSON' };
+        }
     }
 
     if (text.length > 2000) {

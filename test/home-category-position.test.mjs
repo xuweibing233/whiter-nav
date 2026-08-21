@@ -210,11 +210,30 @@ test('style three keeps the standard search engine set and order', async () => {
   assert.ok(localIndex < googleIndex);
   assert.ok(googleIndex < baiduIndex);
   assert.ok(baiduIndex < githubIndex);
-  assert.match(html, /data-engine="local"><span>站内<\/span>/);
-  assert.match(html, /data-engine="google"><span>Google<\/span>/);
-  assert.match(html, /data-engine="baidu"><span>Baidu<\/span>/);
-  assert.match(html, /data-engine="github"><span>Github<\/span>/);
+  assert.match(html, /data-engine="local"[^>]*><span>站内<\/span>/);
+  assert.match(html, /data-engine="google"[^>]*data-engine-url="[^"]*"><span>Google<\/span>/);
+  assert.match(html, /data-engine="baidu"[^>]*><span>Baidu<\/span>/);
+  assert.match(html, /data-engine="github"[^>]*><span>Github<\/span>/);
   assert.doesNotMatch(html, /data-engine="bing"/);
+});
+
+test('custom search engines from settings render in configured order', async () => {
+  const html = await renderHome([
+    { key: 'layout_card_style', value: 'style3' },
+    { key: 'home_search_engine_enabled', value: 'true' },
+    { key: 'home_search_engines', value: JSON.stringify([
+      { id: 'duckduckgo', label: 'DuckDuckGo', url: 'https://duckduckgo.com/?q={q}' },
+      { id: 'google', label: 'Google', url: 'https://www.google.com/search?q={q}' },
+    ]) },
+  ]);
+
+  const duckIndex = html.indexOf('data-engine="duckduckgo"');
+  const googleIndex = html.indexOf('data-engine="google"');
+  assert.ok(duckIndex > -1, 'custom engine should render');
+  assert.ok(duckIndex < googleIndex, 'custom engine order should match settings');
+  assert.match(html, /data-engine="duckduckgo"[^>]*data-engine-url="https:\/\/duckduckgo\.com\/\?q=\{q\}"[^>]*><span>DuckDuckGo<\/span>/);
+  assert.doesNotMatch(html, /data-engine="baidu"/);
+  assert.doesNotMatch(html, /data-engine="github"/);
 });
 
 test('external search inherits desktop and mobile bookmark title colors', async () => {
