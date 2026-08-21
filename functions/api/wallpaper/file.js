@@ -1,6 +1,7 @@
 // functions/api/wallpaper/file.js
 // 读取已上传的本地壁纸图片（公开访问）
-// value 格式：{ data: base64, ct: contentType, at: timestamp }
+// 新格式：KV 存二进制 ArrayBuffer，Content-Type 存 metadata
+// 旧格式兼容：KV 存 { data: base64, ct, at } JSON
 import { errorResponse } from '../../_middleware';
 
 const WALLPAPER_PREFIX = 'wallpaper_';
@@ -25,33 +26,49 @@ export async function onRequestGet(context) {
 
   try {
     const key = `${WALLPAPER_PREFIX}${id}`;
-    // 用 text 读取再自行 parse，避免 KV type:'json' 在大 value 或异常数据时抛错
-    const text = await env.NAV_AUTH.get(key, { type: 'text' });
-    if (!text) {
-      return new Response('Not found', { status: 404 });
-    }
 
-    let payload;
-    let buffer;
+    // 用 getWithMetadata：新格式二进制有 metadata；旧格式 JSON 无 metadata
+    let result = null;
     try {
-      payload = JSON.parse(text);
-      if (!payload || !payload.data) {
-        return new Response('Not found', { status: 404 });
-      }
-      buffer = base64ToArrayBuffer(payload.data);
+      result = await env.NAV_AUTH.getWithMetadata(key);
     } catch (e) {
-      // base64 损坏或 JSON 非法：明确返回 500，避免前端破图但无法定位
-      console.error('Wallpaper payload decode failed:', e);
-      return new Response('Corrupted wallpaper data', { status: 500 });
+      result = null;
     }
 
-    return new Response(buffer, {
-      headers: {
-        'Content-Type': payload.ct || 'image/jpeg',
-        'Cache-Control': 'public, max-age=86400, immutable',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    if (result && result.value !== null && result.metadata) {
+      // 新格式：二进制 + metadata
+      return new Response(result.value, {
+        headers: {
+          'Content-Type': result.metadata.ct || 'image/jpeg',
+          'Cache-Control': 'public, max-age=86400, immutable',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    if (result && result.value !== null && !result.metadata) {
+      // 无 metadata：旧格式（base64 JSON）或异常数据
+      const text = typeof result.value === 'string' ? result.value : null;
+      if (text) {
+        try {
+          const payload = JSON.parse(text);
+          if (payload && payload.data) {
+            return new Response(base64ToArrayBuffer(payload.data), {
+              headers: {
+                'Content-Type': payload.ct || 'image/jpeg',
+                'Cache-Control': 'public, max-age=86400, immutable',
+                'Access-Control-Allow-Origin': '*',
+              },
+            });
+          }
+        } catch (e) {
+          console.error('Wallpaper legacy decode failed:', e);
+          return new Response('Corrupted wallpaper data', { status: 500 });
+        }
+      }
+    }
+
+    return new Response('Not found', { status: 404 });
   } catch (e) {
     console.error('Wallpaper file read failed:', e);
     return errorResponse(`Failed to read: ${e.message}`, 500);

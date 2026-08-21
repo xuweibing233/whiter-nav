@@ -1,5 +1,6 @@
 // functions/api/wallpaper/upload.js
-// 上传本地壁纸：认证后接收图片文件，存入 KV（wallpaper_<uuid>）
+// 上传本地壁纸：认证后接收图片文件，以二进制直接存入 KV（wallpaper_<uuid>）
+// Content-Type 存入 KV metadata；读取用 getWithMetadata + arrayBuffer
 import { isAdminAuthenticated, errorResponse, jsonResponse } from '../../_middleware';
 
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
@@ -9,16 +10,6 @@ const ALLOWED_TYPES = new Map([
   ['image/webp', 'image/webp'],
   ['image/gif', 'image/gif'],
 ]);
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -49,13 +40,8 @@ export async function onRequestPost(context) {
 
     const id = crypto.randomUUID();
     const key = `wallpaper_${id}`;
-    // contentType 存进 value 本身（base64 + 类型），不依赖 KV metadata，
-    // 避免 getWithMetadata 取不到类型导致浏览器无法渲染图片
-    await env.NAV_AUTH.put(key, JSON.stringify({
-      data: arrayBufferToBase64(buffer),
-      ct: contentType,
-      at: Date.now(),
-    }));
+    // 二进制直接存 KV，Content-Type 走 metadata，避免大图 base64 字符串导致的解码问题
+    await env.NAV_AUTH.put(key, buffer, { metadata: { ct: contentType } });
 
     return jsonResponse({
       code: 201,
