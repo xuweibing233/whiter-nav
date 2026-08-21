@@ -1329,6 +1329,20 @@
                 <p class="text-xs text-gray-500 mt-2">可直接填写图片链接；留空则按当前卡片风格使用默认壁纸</p>
               </div>
               <div class="p-2 rounded bg-gray-50 border border-gray-100 mt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-gray-700 font-medium">本地上传壁纸</label>
+                  <button type="button" id="uploadWallpaperBtn"
+                    class="text-xs bg-primary-600 text-white px-3 py-1.5 rounded hover:bg-primary-700 transition-colors">上传图片</button>
+                  <input type="file" id="uploadWallpaperFile" accept="image/jpeg,image/png,image/webp,image/gif"
+                    class="hidden">
+                </div>
+                <div id="uploadedWallpapers"
+                  class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 min-h-[80px] max-h-[300px] overflow-y-auto custom-scrollbar p-1">
+                  <div class="col-span-full text-center text-gray-400 py-6 text-sm">加载中...</div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">点击缩略图应用为当前壁纸；图片存储于 Cloudflare KV，单张不超过 2MB</p>
+              </div>
+              <div class="p-2 rounded bg-gray-50 border border-gray-100 mt-4">
                 <div class="flex flex-col space-y-3 mb-2">
                   <div class="flex items-center justify-between">
                     <label class="block text-gray-700 font-medium">在线壁纸库 (点击应用)</label>
@@ -1744,10 +1758,11 @@
   <script src="/js/admin-settings-preview-controls.js?v=f24b2876"></script>
   <script src="/js/admin-settings-preview.js?v=20153112"></script>
   <script src="/js/admin-settings-wallpaper.js?v=e7168e1d"></script>
+  <script src="/js/admin-settings-wallpaper-upload.js?v=995ef63d"></script>
   <script src="/js/admin-settings-ai.js?v=cc131031"></script>
   <script src="/js/admin-settings-backup-ui.js?v=190ef154"></script>
   <script src="/js/admin-settings-backup.js?v=33b864d8"></script>
-  <script src="/js/admin-settings.js?v=bc966ebf"></script>
+  <script src="/js/admin-settings.js?v=469a9f59"></script>
   <script src="/js/admin-import-export.js?v=b1b28f40"></script>
 </body>
 
