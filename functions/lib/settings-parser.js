@@ -32,6 +32,7 @@ export const SETTINGS_SCHEMA = {
     home_site_description: { default: '', type: 'string' },
     home_footer_text: { default: '', type: 'string' },
     home_footer_github_url: { default: '', type: 'string' },
+    home_site_favicon: { default: '', type: 'string' },
     home_search_engine_enabled: { default: false, type: 'bool' },
     home_search_engines: { default: '', type: 'string' },
     home_default_category: { default: '', type: 'string' },
@@ -110,6 +111,7 @@ const FONT_KEYS = new Set([
 const URL_KEYS = new Set([
     'home_custom_font_url',
     'layout_custom_wallpaper',
+    'home_site_favicon',
 ]);
 
 function normalizeParsedCategoryPosition(position, menuLayout) {

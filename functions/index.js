@@ -582,7 +582,18 @@ export async function onRequest(context) {
   // 替换所有模板占位符（单次正则匹配 + 映射表）
   const canonicalUrl = `${url.origin}/`;
   const ogImageUrl = `${url.origin}/favicon.svg`;
+  // favicon：自定义 URL 优先（按扩展名推断 type），留空回退默认 svg
+  const customFavicon = sanitizeUrl(S.home_site_favicon);
+  const faviconType = customFavicon
+    ? (customFavicon.toLowerCase().endsWith('.svg') ? 'image/svg+xml'
+      : customFavicon.toLowerCase().endsWith('.png') ? 'image/png'
+      : customFavicon.toLowerCase().endsWith('.ico') ? 'image/x-icon'
+      : 'image/x-icon')
+    : 'image/svg+xml';
+  const faviconHref = customFavicon || `${url.origin}/favicon.svg`;
+  const faviconTag = `<link rel="icon" href="${escapeHTML(faviconHref)}" type="${faviconType}">`;
   const replacements = {
+    'FAVICON_TAG': faviconTag,
     'HEADER_CONTENT': headerContent,
     'HEADER_CLASS': headerClass,
     'CONTAINER_CLASS': containerClass,
