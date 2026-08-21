@@ -17,11 +17,14 @@ export function renderSiteCards(sites, settings) {
     const isAboveFold = index < config.aboveFoldImageCount;
     const imgLoadingAttrs = isAboveFold ? 'fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
 
-    const descHtml = config.hideDesc ? '' : `<p class="${config.descClass}" title="${card.descHtml}">${card.descHtml}</p>`;
+    // 卡片级原生 tooltip：有描述显示完整描述，无描述显示名称；
+    // 内部元素不再单独挂 title，避免多个提示抢焦点
+    const cardTooltip = card.hasDesc ? card.descHtml : card.nameHtml;
+    const descHtml = config.hideDesc ? '' : `<p class="${config.descClass}">${card.descHtml}</p>`;
 
     const linksHtml = config.hideLinks ? '' : `
       <div class="${config.linkRowClass}">
-        <span class="${config.urlTextClass}" title="${card.displayUrlHtml}">${card.displayUrlHtml}</span>
+        <span class="${config.urlTextClass}">${card.displayUrlHtml}</span>
         <button class="${config.copyButtonBaseClass} ${card.hasValidUrl ? config.copyButtonEnabledClass : config.copyButtonDisabledClass}" data-url="${card.urlHtml}" ${card.hasValidUrl ? '' : 'disabled'}>
           <svg class="h-3 w-3 ${config.hideCopyText ? '' : 'mr-1'}"><use href="#icon-copy"/></svg>
           ${config.hideCopyText ? '' : '<span class="copy-text">复制</span>'}
@@ -35,7 +38,7 @@ export function renderSiteCards(sites, settings) {
       </span>`;
 
     return `
-      <div class="${config.baseCardClass} ${config.frostedClass} ${config.cardStyleClass} card-anim-enter" data-id="${card.id}">
+      <div class="${config.baseCardClass} ${config.frostedClass} ${config.cardStyleClass} card-anim-enter" data-id="${card.id}" title="${cardTooltip}">
         <div class="site-card-content">
           <a href="${card.urlHtml || '#'}" ${card.hasValidUrl ? 'target="_blank" rel="noopener noreferrer"' : ''} class="block">
             <div class="flex items-start">
@@ -46,7 +49,7 @@ export function renderSiteCards(sites, settings) {
       }
               </div>
               <div class="flex-1 min-w-0">
-                <h3 class="${config.titleClass}" title="${card.nameHtml}">${card.nameHtml}</h3>
+                <h3 class="${config.titleClass}">${card.nameHtml}</h3>
                 ${categoryHtml}
               </div>
             </div>

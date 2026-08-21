@@ -1,133 +1,6 @@
 (function () {
   const Home = window.IoriHome = window.IoriHome || {};
 
-  // 卡片描述浮层：鼠标悬停卡片时，在光标附近展示完整描述
-  // - 事件委托到 #sitesGrid，SSR 初始卡片与客户端重绘卡片都生效
-  // - 仅当站点有真实描述（hasDesc）时显示；style3/隐藏描述等场景也能兜底
-  function initDescTooltip(sitesGrid) {
-    const tooltip = document.createElement('div');
-    tooltip.className = 'site-desc-tooltip';
-    document.body.appendChild(tooltip);
-
-    let activeCard = null;
-    let mouseX = 0;
-    let mouseY = 0;
-    let hideTimer = null;
-    let rafId = null;
-
-    const sitesById = new Map();
-    (window.IORI_SITES || []).forEach(s => sitesById.set(String(s.id), s));
-
-    function positionTooltip() {
-      if (!activeCard) return;
-      const offset = 14;
-      let left = mouseX + offset;
-      let top = mouseY + offset;
-
-      const tw = tooltip.offsetWidth;
-      const th = tooltip.offsetHeight;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
-      if (left + tw + 8 > vw) left = mouseX - tw - offset;
-      if (top + th + 8 > vh) top = mouseY - th - offset;
-      if (left < 6) left = 6;
-      if (top < 6) top = 6;
-
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${top}px`;
-    }
-
-    // 临时禁用卡片内所有原生 title（避免与自定义浮层同时弹出两个提示）
-    function suppressNativeTitles(card) {
-      card.querySelectorAll('[title]').forEach(el => {
-        if (el.dataset.origTitle === undefined) {
-          el.dataset.origTitle = el.getAttribute('title') || '';
-          el.removeAttribute('title');
-        }
-      });
-    }
-
-    // 恢复被禁用的原生 title
-    function restoreNativeTitles(card) {
-      if (!card) return;
-      card.querySelectorAll('[data-orig-title]').forEach(el => {
-        if (el.dataset.origTitle) el.setAttribute('title', el.dataset.origTitle);
-        delete el.dataset.origTitle;
-      });
-    }
-
-    function showTooltip(card) {
-      const site = sitesById.get(String(card.getAttribute('data-id')));
-      // 无描述（或数据缺失）的卡片：隐藏浮层，避免上一张卡片的浮层残留
-      if (!site || !site.hasDesc || !site.descHtml) {
-        hideTooltip();
-        return;
-      }
-
-      // 从上一张卡片切换过来时，先恢复上一张的原生 title
-      if (activeCard && activeCard !== card) {
-        restoreNativeTitles(activeCard);
-      }
-
-      activeCard = card;
-      suppressNativeTitles(card);
-      tooltip.innerHTML = `<span class="tooltip-title">${site.nameHtml}</span><span class="tooltip-desc">${site.descHtml}</span>`;
-      tooltip.classList.add('visible');
-      requestAnimationFrame(positionTooltip);
-    }
-
-    function hideTooltip() {
-      restoreNativeTitles(activeCard);
-      activeCard = null;
-      tooltip.classList.remove('visible');
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-    }
-
-    sitesGrid.addEventListener('mouseover', (e) => {
-      const card = e.target.closest('.site-card');
-      // 移到卡片间隙/空白处：隐藏浮层（与「移到无描述卡片」同样处理，避免残留）
-      if (!card) {
-        clearTimeout(hideTimer);
-        hideTooltip();
-        return;
-      }
-      if (card === activeCard) return;
-      clearTimeout(hideTimer);
-      showTooltip(card);
-    });
-
-    sitesGrid.addEventListener('mousemove', (e) => {
-      if (!activeCard) return;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(positionTooltip);
-    });
-
-    sitesGrid.addEventListener('mouseleave', () => {
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(hideTooltip, 120);
-    });
-
-    // 卡片可能被隐藏/移除（如搜索过滤），此时应关闭浮层
-    if (typeof MutationObserver !== 'undefined') {
-      const observer = new MutationObserver(() => {
-        if (activeCard && !activeCard.isConnected) hideTooltip();
-      });
-      observer.observe(sitesGrid, { childList: true, subtree: true });
-
-      return () => {
-        observer.disconnect();
-        tooltip.remove();
-      };
-    }
-    return () => { tooltip.remove(); };
-  }
-
   Home.createCardController = function () {
     const initialCards = document.querySelectorAll('.site-card.card-anim-enter');
     const sitesGrid = document.getElementById('sitesGrid');
@@ -380,11 +253,11 @@
           ? `<img src="${site.logoUrlHtml}" alt="${site.nameHtml}" width="40" height="40" class="${cardConfig.logoClass}" ${imgLoadingAttrs}>`
           : `<div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center text-white font-semibold text-lg shadow-inner">${site.cardInitialHtml}</div>`;
 
-        const descHtml = cardConfig.hideDesc ? '' : `<p class="${cardConfig.descClass}" title="${site.descHtml}">${site.descHtml}</p>`;
+        const descHtml = cardConfig.hideDesc ? '' : `<p class="${cardConfig.descClass}">${site.descHtml}</p>`;
 
         const linksHtml = cardConfig.hideLinks ? '' : `
           <div class="${cardConfig.linkRowClass}">
-            <span class="${cardConfig.urlTextClass}" title="${site.displayUrlHtml}">${site.displayUrlHtml}</span>
+            <span class="${cardConfig.urlTextClass}">${site.displayUrlHtml}</span>
             <button class="${cardConfig.copyButtonBaseClass} ${site.hasValidUrl ? cardConfig.copyButtonEnabledClass : cardConfig.copyButtonDisabledClass}" data-url="${site.urlHtml}" ${site.hasValidUrl ? '' : 'disabled'}>
               <svg class="h-3 w-3 ${cardConfig.hideCopyText ? '' : 'mr-1'}"><use href="#icon-copy"/></svg>
               ${cardConfig.hideCopyText ? '' : '<span class="copy-text">复制</span>'}
@@ -403,6 +276,8 @@
         bindCardAnimationCleanup(card);
 
         card.setAttribute('data-id', site.id);
+        // 卡片级原生 tooltip：有描述显示完整描述，无描述显示名称
+        card.setAttribute('title', site.hasDesc ? site.descHtml : site.nameHtml);
 
         card.innerHTML = `
         <div class="site-card-content">
@@ -412,7 +287,7 @@
                 ${logoHtml}
               </div>
               <div class="flex-1 min-w-0">
-                <h3 class="${cardConfig.titleClass}" title="${site.nameHtml}">${site.nameHtml}</h3>
+                <h3 class="${cardConfig.titleClass}">${site.nameHtml}</h3>
                 ${categoryHtml}
               </div>
             </div>
@@ -431,8 +306,6 @@
       initialCards.forEach((card) => {
         bindCardAnimationCleanup(card);
       });
-
-      if (sitesGrid) initDescTooltip(sitesGrid);
 
       mobileCardQuery?.addEventListener('change', () => {
         syncCardConfigForViewport();
