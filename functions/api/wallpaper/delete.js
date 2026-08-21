@@ -1,6 +1,6 @@
 // functions/api/wallpaper/delete.js
 // 删除已上传的本地壁纸（认证后可用）
-import { isAdminAuthenticated, errorResponse, jsonResponse } from '../../_middleware';
+import { isAdminAuthenticated, errorResponse, jsonResponse, markHomeCacheDirty } from '../../_middleware';
 
 const WALLPAPER_PREFIX = 'wallpaper_';
 
@@ -26,6 +26,10 @@ export async function onRequestDelete(context) {
     }
 
     await env.NAV_AUTH.delete(key);
+
+    // 删除壁纸后失效首页缓存，避免首页 HTML 仍引用已删除的图片 id 导致破图
+    await markHomeCacheDirty(env, 'all');
+
     return jsonResponse({ code: 200, message: 'Wallpaper deleted' });
   } catch (e) {
     console.error('Wallpaper delete failed:', e);

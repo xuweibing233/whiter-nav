@@ -25,14 +25,29 @@ export async function onRequestGet(context) {
 
   try {
     const key = `${WALLPAPER_PREFIX}${id}`;
-    const raw = await env.NAV_AUTH.get(key, { type: 'json' });
-    if (!raw || !raw.data) {
+    // 用 text 读取再自行 parse，避免 KV type:'json' 在大 value 或异常数据时抛错
+    const text = await env.NAV_AUTH.get(key, { type: 'text' });
+    if (!text) {
       return new Response('Not found', { status: 404 });
     }
 
-    return new Response(base64ToArrayBuffer(raw.data), {
+    let payload;
+    let buffer;
+    try {
+      payload = JSON.parse(text);
+      if (!payload || !payload.data) {
+        return new Response('Not found', { status: 404 });
+      }
+      buffer = base64ToArrayBuffer(payload.data);
+    } catch (e) {
+      // base64 损坏或 JSON 非法：明确返回 500，避免前端破图但无法定位
+      console.error('Wallpaper payload decode failed:', e);
+      return new Response('Corrupted wallpaper data', { status: 500 });
+    }
+
+    return new Response(buffer, {
       headers: {
-        'Content-Type': raw.ct || 'image/jpeg',
+        'Content-Type': payload.ct || 'image/jpeg',
         'Cache-Control': 'public, max-age=86400, immutable',
         'Access-Control-Allow-Origin': '*',
       },
