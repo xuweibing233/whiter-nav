@@ -67,6 +67,7 @@ const HTML_FILES = {
     { file: 'public/js/admin-settings-preview.js', pattern: /\/js\/admin-settings-preview\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-wallpaper.js', pattern: /\/js\/admin-settings-wallpaper\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-wallpaper-upload.js', pattern: /\/js\/admin-settings-wallpaper-upload\.js\?v=[a-zA-Z0-9]+/ },
+    { file: 'public/js/admin-settings-favicon-upload.js', pattern: /\/js\/admin-settings-favicon-upload\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-ai.js', pattern: /\/js\/admin-settings-ai\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-backup-ui.js', pattern: /\/js\/admin-settings-backup-ui\.js\?v=[a-zA-Z0-9]+/ },
     { file: 'public/js/admin-settings-backup.js', pattern: /\/js\/admin-settings-backup\.js\?v=[a-zA-Z0-9]+/ },
