@@ -1,8 +1,8 @@
 // functions/api/icon.js
-// 站点图标本地代理 + KV 缓存：
-// 1. 浏览器只请求本域 /api/icon?url=<domain>，不再直连外部 favicon API
-// 2. 第一次请求时从多个外部图标源抓取，成功后写入 KV（TTL 7 天）
-// 3. 后续请求全部命中 KV 缓存，不再消耗外部请求
+// 站点图标代理：不使用 KV，改用 Cloudflare 边缘缓存（Cache API）+ 浏览器长缓存
+// 1. 同一图标每个访客首访 → 查边缘缓存 → 未命中抓取一次外部源
+// 2. 命中边缘缓存 → 直接返回，不读 KV、不再抓外部
+// 3. 浏览器缓存 30 天（immutable），重复访客不再请求
 
 const FAVICON_ENDPOINTS = (domain) => [
   `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
@@ -12,7 +12,6 @@ const FAVICON_ENDPOINTS = (domain) => [
 ];
 
 const MIN_IMAGE_SIZE = 100;
-const ICON_CACHE_TTL = 7 * 24 * 60 * 60; // 7 天（秒）
 const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" rx="8" fill="#e2e8f0"/><circle cx="20" cy="15" r="5" fill="#94a3b8"/><path d="M10 32a10 10 0 0 1 20 0z" fill="#94a3b8"/></svg>`;
 
 function extractDomain(raw) {
@@ -26,36 +25,6 @@ function extractDomain(raw) {
   }
 }
 
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-function iconResponse(buffer, contentType, { fromCache = false } = {}) {
-  return new Response(buffer, {
-    headers: {
-      'Content-Type': contentType || 'image/png',
-      'Cache-Control': 'public, max-age=86400, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'X-Icon-Cache': fromCache ? 'HIT' : 'MISS',
-    },
-  });
-}
-
 function fallbackResponse() {
   return new Response(FALLBACK_SVG, {
     headers: {
@@ -67,19 +36,27 @@ function fallbackResponse() {
 }
 
 export async function onRequestGet(context) {
-  const { request, env } = context;
+  const { request } = context;
   const url = new URL(request.url);
   const domain = extractDomain(url.searchParams.get('url'));
 
   if (!domain) return fallbackResponse();
 
-  const cacheKey = `icon_${domain}`;
+  // Cache API 需要用规范化的请求 URL 作为 key
+  const cacheKey = new Request(`${url.origin}${url.pathname}?url=${encodeURIComponent(domain)}`);
 
-  // 1. 尝试读取 KV 缓存
+  // 1. 查边缘缓存（caches.default，Cloudflare 免费可用）
   try {
-    const cached = await env.NAV_AUTH.get(cacheKey, { type: 'json' });
-    if (cached && cached.data) {
-      return iconResponse(base64ToArrayBuffer(cached.data), cached.ct, { fromCache: true });
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: {
+          'Content-Type': cached.headers.get('Content-Type') || 'image/png',
+          'Cache-Control': 'public, max-age=2592000, immutable',
+          'Access-Control-Allow-Origin': '*',
+          'X-Icon-Cache': 'HIT',
+        },
+      });
     }
   } catch (e) {
     console.warn('Icon cache read failed:', e);
@@ -87,6 +64,9 @@ export async function onRequestGet(context) {
 
   // 2. 未命中：从外部源抓取（多个源依次尝试）
   const userAgent = 'Mozilla/5.0 (compatible; MyNavigator/1.0)';
+  let iconBuffer = null;
+  let iconType = 'image/png';
+
   for (const targetUrl of FAVICON_ENDPOINTS(domain)) {
     try {
       const response = await fetch(targetUrl, {
@@ -105,23 +85,34 @@ export async function onRequestGet(context) {
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength < MIN_IMAGE_SIZE) continue;
 
-      // 3. 写入 KV 缓存（base64 + 类型）
-      try {
-        await env.NAV_AUTH.put(cacheKey, JSON.stringify({
-          data: arrayBufferToBase64(buffer),
-          ct: contentType,
-          at: Date.now(),
-        }), { expirationTtl: ICON_CACHE_TTL });
-      } catch (e) {
-        console.warn('Icon cache write failed:', e);
-      }
-
-      return iconResponse(buffer, contentType);
+      iconBuffer = buffer;
+      iconType = contentType;
+      break;
     } catch (e) {
       console.warn(`Failed to fetch icon from ${targetUrl}:`, e);
     }
   }
 
-  // 4. 全部失败：返回内置占位图，避免前端破图
-  return fallbackResponse();
+  if (!iconBuffer) {
+    return fallbackResponse();
+  }
+
+  // 3. 写入边缘缓存（异步，不阻塞响应）
+  const finalResponse = new Response(iconBuffer, {
+    headers: {
+      'Content-Type': iconType,
+      'Cache-Control': 'public, max-age=2592000, immutable',
+      'Access-Control-Allow-Origin': '*',
+      'X-Icon-Cache': 'MISS',
+    },
+  });
+
+  try {
+    const cache = caches.default;
+    context.waitUntil(cache.put(cacheKey, finalResponse.clone()));
+  } catch (e) {
+    console.warn('Icon cache write failed:', e);
+  }
+
+  return finalResponse;
 }
