@@ -45,7 +45,7 @@ function createStatement(sql, settingsRows) {
             { id: 4, name: 'Dribbble', url: 'https://dribbble.com', logo: '', desc: '全球设计师展示和发现创意作品的设计社区，涵盖 UI/UX、插画、品牌设计等领域。', catelog_id: 2, catelog_name: '设计资源' },
             { id: 5, name: 'Figma', url: 'https://www.figma.com', logo: '', desc: '基于浏览器的协作式界面设计工具，支持实时协作、原型制作、设计系统管理，是团队设计工作流的核心工具。', catelog_id: 2, catelog_name: '设计资源' },
             { id: 6, name: 'Notion', url: 'https://www.notion.so', logo: '', desc: '集笔记、文档、知识库、项目管理于一体的协作平台，支持数据库视图、模板和团队协作。', catelog_id: 3, catelog_name: '效率办公' },
-            { id: 7, name: '无描述站点', url: 'https://example.org', logo: '', desc: '', catelog_id: 3, catelog_name: '效率办公' },
+            { id: 7, name: '无描述站点', url: 'https://example.org', logo: '', desc: '', catelog_id: 1, catelog_name: '开发工具' },
           ],
         };
       }

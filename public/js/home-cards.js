@@ -1,6 +1,109 @@
 (function () {
   const Home = window.IoriHome = window.IoriHome || {};
 
+  // 卡片悬浮浮层：鼠标悬停卡片时，在光标附近展示「完整描述 + 网址」
+  // - 有描述：描述 + 网址（换行）；无描述：仅网址
+  // - 事件委托到 #sitesGrid，SSR 初始卡片与客户端重绘卡片都生效
+  // - 通过 data-desc / data-url 读取内容（SSR 与客户端渲染均写入）
+  function initCardTooltip(sitesGrid) {
+    const tooltip = document.createElement('div');
+    tooltip.className = 'site-card-tooltip';
+    document.body.appendChild(tooltip);
+
+    let activeCard = null;
+    let mouseX = 0;
+    let mouseY = 0;
+    let hideTimer = null;
+    let rafId = null;
+
+    function positionTooltip() {
+      if (!activeCard) return;
+      const offset = 14;
+      let left = mouseX + offset;
+      let top = mouseY + offset;
+
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      if (left + tw + 8 > vw) left = mouseX - tw - offset;
+      if (top + th + 8 > vh) top = mouseY - th - offset;
+      if (left < 6) left = 6;
+      if (top < 6) top = 6;
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function showTooltip(card) {
+      const desc = card.getAttribute('data-desc') || '';
+      const url = card.getAttribute('data-url') || '';
+      // 描述和网址都为空则不显示浮层
+      if (!desc.trim() && !url.trim()) {
+        hideTooltip();
+        return;
+      }
+
+      activeCard = card;
+      // 描述 + 网址分行；无描述时仅网址
+      const descHtml = desc.trim()
+        ? `<div class="tooltip-desc"></div><div class="tooltip-divider"></div>`
+        : '';
+      const urlHtml = url.trim() ? `<div class="tooltip-url"></div>` : '';
+      tooltip.innerHTML = descHtml + urlHtml;
+
+      if (desc.trim()) tooltip.querySelector('.tooltip-desc').textContent = desc;
+      if (url.trim()) tooltip.querySelector('.tooltip-url').textContent = url;
+
+      tooltip.classList.add('visible');
+      requestAnimationFrame(positionTooltip);
+    }
+
+    function hideTooltip() {
+      activeCard = null;
+      tooltip.classList.remove('visible');
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    sitesGrid.addEventListener('mouseover', (e) => {
+      const card = e.target.closest('.site-card');
+      // 移到卡片间隙/空白处：隐藏浮层，避免残留
+      if (!card) {
+        clearTimeout(hideTimer);
+        hideTooltip();
+        return;
+      }
+      if (card === activeCard) return;
+      clearTimeout(hideTimer);
+      showTooltip(card);
+    });
+
+    sitesGrid.addEventListener('mousemove', (e) => {
+      if (!activeCard) return;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(positionTooltip);
+    });
+
+    sitesGrid.addEventListener('mouseleave', () => {
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(hideTooltip, 120);
+    });
+
+    // 卡片可能被移除（搜索过滤重新渲染等），此时关闭浮层
+    if (typeof MutationObserver !== 'undefined') {
+      const observer = new MutationObserver(() => {
+        if (activeCard && !activeCard.isConnected) hideTooltip();
+      });
+      observer.observe(sitesGrid, { childList: true, subtree: true });
+    }
+  }
+
   Home.createCardController = function () {
     const initialCards = document.querySelectorAll('.site-card.card-anim-enter');
     const sitesGrid = document.getElementById('sitesGrid');
@@ -276,8 +379,10 @@
         bindCardAnimationCleanup(card);
 
         card.setAttribute('data-id', site.id);
-        // 卡片级原生 tooltip：有描述显示完整描述，无描述显示名称
-        card.setAttribute('title', site.hasDesc ? site.descHtml : site.nameHtml);
+        // 悬浮数据供自定义浮层读取：有描述时「描述 + 网址」，无描述只展示网址
+        // 无描述时 data-desc 置空，避免「暂无描述」兜底文本出现在浮层里
+        card.setAttribute('data-desc', site.hasDesc ? (site.descHtml || '') : '');
+        card.setAttribute('data-url', site.displayUrlHtml || '');
 
         card.innerHTML = `
         <div class="site-card-content">
@@ -306,6 +411,8 @@
       initialCards.forEach((card) => {
         bindCardAnimationCleanup(card);
       });
+
+      if (sitesGrid) initCardTooltip(sitesGrid);
 
       mobileCardQuery?.addEventListener('change', () => {
         syncCardConfigForViewport();

@@ -44,9 +44,9 @@ test('renderSiteCards reflects layout options used by SSR cards', () => {
 
   assert.match(html, /frosted-glass-effect/);
   assert.match(html, /style-2/);
-  // 描述不渲染为段落，但仍作为卡片 title 携带（hover 原生 tooltip 显示）
+  // 描述不渲染为段落，但仍作为卡片 data-desc 携带（hover 浮层展示）
   assert.doesNotMatch(html, /<p[^>]*>Hidden/);
-  assert.match(html, /title="Hidden"/);
+  assert.match(html, /data-desc="Hidden"/);
   assert.doesNotMatch(html, /copy-btn/);
 });
 
@@ -75,9 +75,9 @@ test('style three renders compact navigation tiles and hides secondary content',
   assert.equal(config.frostedClass, '');
   assert.match(html, /style-3/);
   assert.doesNotMatch(html, /frosted-glass-effect/);
-  // style3 隐藏描述/分类/链接：描述不渲染为段落但 title 仍携带，分类与链接不出现
+  // style3 隐藏描述/分类/链接：描述不渲染为段落但 data-desc 仍携带，分类与链接不出现
   assert.doesNotMatch(html, /<p[^>]*>Hidden/);
-  assert.match(html, /title="Hidden"/);
+  assert.match(html, /data-desc="Hidden"/);
   assert.doesNotMatch(html, /Tools|copy-btn/);
 });
 

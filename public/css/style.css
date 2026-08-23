@@ -164,6 +164,59 @@ html.dark body.custom-wallpaper .sidebar {
 }
 
 /* 3. 卡片基础与悬停样式 */
+/* 卡片悬浮浮层（鼠标跟随 tooltip：完整描述 + 网址） */
+.site-card-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 340px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.95) translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.dark .site-card-tooltip {
+  background: #1f2937;
+  border-color: #374151;
+}
+.site-card-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translateY(0);
+}
+.site-card-tooltip .tooltip-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.dark .site-card-tooltip .tooltip-desc {
+  color: #d1d5db;
+}
+.site-card-tooltip .tooltip-divider {
+  height: 1px;
+  background: #eef2f6;
+  margin: 8px 0;
+}
+.dark .site-card-tooltip .tooltip-divider {
+  background: #374151;
+}
+.site-card-tooltip .tooltip-url {
+  font-size: 12px;
+  color: #6366f1;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.dark .site-card-tooltip .tooltip-url {
+  color: #818cf8;
+}
+
 .site-card {
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
               box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),

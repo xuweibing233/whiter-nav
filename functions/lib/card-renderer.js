@@ -17,9 +17,12 @@ export function renderSiteCards(sites, settings) {
     const isAboveFold = index < config.aboveFoldImageCount;
     const imgLoadingAttrs = isAboveFold ? 'fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
 
-    // 卡片级原生 tooltip：有描述显示完整描述，无描述显示名称；
-    // 内部元素不再单独挂 title，避免多个提示抢焦点
-    const cardTooltip = card.hasDesc ? card.descHtml : card.nameHtml;
+    // 卡片级悬浮数据（自定义浮层读取）：有描述时展示「描述 + 网址」，无描述只展示网址
+    // 无描述时 data-desc 置空，避免「暂无描述」兜底文本出现在浮层里
+    const hoverDataAttrs = [
+      `data-desc="${card.hasDesc ? card.descHtml : ''}"`,
+      `data-url="${card.displayUrlHtml}"`,
+    ].join(' ');
     const descHtml = config.hideDesc ? '' : `<p class="${config.descClass}">${card.descHtml}</p>`;
 
     const linksHtml = config.hideLinks ? '' : `
@@ -38,7 +41,7 @@ export function renderSiteCards(sites, settings) {
       </span>`;
 
     return `
-      <div class="${config.baseCardClass} ${config.frostedClass} ${config.cardStyleClass} card-anim-enter" data-id="${card.id}" title="${cardTooltip}">
+      <div class="${config.baseCardClass} ${config.frostedClass} ${config.cardStyleClass} card-anim-enter" data-id="${card.id}" ${hoverDataAttrs}>
         <div class="site-card-content">
           <a href="${card.urlHtml || '#'}" ${card.hasValidUrl ? 'target="_blank" rel="noopener noreferrer"' : ''} class="block">
             <div class="flex items-start">
