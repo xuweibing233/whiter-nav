@@ -53,10 +53,46 @@ function extractFaviconTargetDomain(faviconUrl) {
   }
 }
 
+// 识别并转换 GitHub 仓库内图片链接为 raw 直链；非 GitHub 仓库图片返回空串
+// 支持两种输入：
+//   https://github.com/<owner>/<repo>/blob/<branch>/<path>  （GitHub 网页预览地址）
+//   https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path> （已 raw 直链）
+// 返回 raw 形式的完整 URL；解析失败返回 ''
+function resolveGithubRawLogoUrl(logoUrl) {
+  if (!logoUrl) return '';
+  try {
+    const parsed = new URL(logoUrl);
+
+    // 已是 raw 域名
+    if (parsed.hostname.toLowerCase() === 'raw.githubusercontent.com') {
+      return parsed.href;
+    }
+
+    // github.com/xxx/yyy/blob/branch/path → raw
+    if (parsed.hostname.toLowerCase() === 'github.com' || parsed.hostname.toLowerCase() === 'www.github.com') {
+      const m = /^\/([^/]+)\/([^/]+)\/blob\/(.+)$/.exec(parsed.pathname);
+      if (m) {
+        const [, owner, repo, rest] = m;
+        const rawPath = `https://raw.githubusercontent.com/${owner}/${repo}/${rest}`;
+        return rawPath;
+      }
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
+
 // 将 logo URL 归一化为本地代理地址；用户自填的 logo 保留原样
 function resolveLogoProxyUrl(logoUrl, siteUrl) {
   if (!logoUrl) return '';
   if (logoUrl.startsWith('data:')) return logoUrl;
+
+  // GitHub 仓库内图片（blob/raw）→ 走本地代理白名单直链，避免浏览器直连 GitHub
+  const githubRawUrl = resolveGithubRawLogoUrl(logoUrl);
+  if (githubRawUrl) {
+    return `/api/icon?url=${encodeURIComponent(githubRawUrl)}`;
+  }
 
   const isFaviconService = FAVICON_SERVICE_PATTERNS.some(pattern => pattern.test(logoUrl));
   if (isFaviconService) {

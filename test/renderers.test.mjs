@@ -447,3 +447,41 @@ test('menu renderers escape names and use category IDs in URLs', () => {
   assert.match(vertical, /href="\?catalog=1"/);
   assert.match(vertical, /nav|bg-secondary-100|text-primary-700/);
 });
+
+test('GitHub blob/raw logos are proxied through /api/icon; plain logos pass through', () => {
+  const settings = parseSettings([]);
+
+  const { cards } = buildCardHydrationState([
+    // GitHub blob 预览地址 → 转 raw 代理
+    {
+      id: 1,
+      name: 'Repo1',
+      url: 'https://github.com/seakee/CPA-Manager-Plus',
+      logo: 'https://github.com/seakee/CPA-Manager-Plus/blob/main/logo.svg',
+    },
+    // 已是 raw 地址 → 直接代理
+    {
+      id: 2,
+      name: 'Repo2',
+      url: 'https://github.com/a/b',
+      logo: 'https://raw.githubusercontent.com/a/b/main/logo.png',
+    },
+    // 普通自定义 logo → 原样保留
+    {
+      id: 3,
+      name: 'Site',
+      url: 'https://example.com',
+      logo: 'https://cdn.example.com/logo.png',
+    },
+  ], settings);
+
+  assert.equal(
+    cards[0].logoUrlHtml,
+    `/api/icon?url=${encodeURIComponent('https://raw.githubusercontent.com/seakee/CPA-Manager-Plus/main/logo.svg')}`
+  );
+  assert.equal(
+    cards[1].logoUrlHtml,
+    `/api/icon?url=${encodeURIComponent('https://raw.githubusercontent.com/a/b/main/logo.png')}`
+  );
+  assert.equal(cards[2].logoUrlHtml, 'https://cdn.example.com/logo.png');
+});
