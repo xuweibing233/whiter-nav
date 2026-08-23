@@ -70,6 +70,27 @@ test('buildFaviconUrl preserves explicit logos and derives favicon URLs for site
   assert.equal(buildFaviconUrl('javascript:alert(1)', '', 'https://icons.test/?url='), null);
 });
 
+test('buildFaviconUrl uses GitHub owner avatar for repo/user urls', () => {
+  assert.equal(
+    buildFaviconUrl('https://github.com/facebook/react', '', 'https://icons.test/?url='),
+    'https://avatars.githubusercontent.com/facebook?s=64'
+  );
+  assert.equal(
+    buildFaviconUrl('https://github.com/torvalds', '', 'https://icons.test/?url='),
+    'https://avatars.githubusercontent.com/torvalds?s=64'
+  );
+  // 自定义 logo 优先，GitHub 也不覆盖
+  assert.equal(
+    buildFaviconUrl('https://github.com/a/b', 'https://cdn.x.com/logo.png', 'https://icons.test/?url='),
+    'https://cdn.x.com/logo.png'
+  );
+  // 非 GitHub 网站行为不变
+  assert.equal(
+    buildFaviconUrl('https://vuejs.org', '', 'https://icons.test/?url='),
+    'https://icons.test/?url=vuejs.org'
+  );
+});
+
 test('getStyleStr only emits whitelisted fonts', () => {
   assert.equal(
     getStyleStr('18', '#123456', "'Noto Sans SC', sans-serif"),

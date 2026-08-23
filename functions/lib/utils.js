@@ -172,6 +172,8 @@ export function escapeLikePattern(str) {
 
 /**
  * 为给定 URL 生成 favicon 图标地址
+ * GitHub 仓库特殊处理：用仓库 owner 头像作为图标（比 github.com 通用 favicon 更能代表项目），
+ * 对没有官网的 GitHub 项目也有效
  * @param {string} siteUrl - 站点 URL
  * @param {string} currentLogo - 现有 logo（非空则直接返回）
  * @param {string} iconAPI - favicon API 前缀
@@ -181,6 +183,12 @@ export function buildFaviconUrl(siteUrl, currentLogo, iconAPI) {
     if (currentLogo && !currentLogo.startsWith('data:image')) return currentLogo;
     if (!siteUrl || !(siteUrl.startsWith('https://') || siteUrl.startsWith('http://'))) return currentLogo || null;
     try {
+        // GitHub 仓库 / 用户主页：owner 头像作为图标，如 https://github.com/facebook/react
+        const githubMatch = /^https?:\/\/(?:www\.)?github\.com\/([^/]+)(?:\/[^/]+)?\/?$/i.exec(siteUrl);
+        if (githubMatch && githubMatch[1]) {
+            const owner = githubMatch[1];
+            return `https://avatars.githubusercontent.com/${encodeURIComponent(owner)}?s=64`;
+        }
         const domain = new URL(siteUrl).host;
         return `${iconAPI}${domain}`;
     } catch {
