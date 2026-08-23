@@ -206,6 +206,15 @@
       const catalogId = link.getAttribute('data-id');
       const catalogName = link.textContent.trim();
 
+      // 点分类 = 退出搜索：清空搜索框 + 重置搜索视图，避免旧关键词干扰分类展示
+      Home.exitSearchView?.();
+      document.querySelectorAll('.search-input-target').forEach(input => {
+        if (input.value) {
+          input.value = '';
+          input.dispatchEvent(new Event('input'));
+        }
+      });
+
       Home.closeSidebarMenu?.();
 
       const sitesGrid = document.getElementById('sitesGrid');

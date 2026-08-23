@@ -8,26 +8,102 @@
     let searchCardCache = null;
     let searchDebounceTimer = null;
     let currentSearchEngine = 'local';
+    // 搜索态标记：true 表示网格当前是全量书签（搜索视图），false 为默认分类视图
+    let isSearchView = false;
 
     function clearSearchCardCache() {
       searchCardCache = null;
     }
 
-    // 预缓存卡片搜索数据：从 IORI_SITES 按 data-id 查表，避免把数据再塞进 card 的 data-* 属性
+    // 预缓存全量书签搜索数据（不受当前渲染分类影响）
+    // 从 IORI_SITES 全量构建；SSR 注入的 IORI_SITES 始终包含所有书签
     function getSearchCardCache() {
       if (searchCardCache) return searchCardCache;
-      const cards = sitesGrid?.querySelectorAll('.site-card');
-      if (!cards) return [];
-      const sitesById = new Map();
-      (window.IORI_SITES || []).forEach(s => sitesById.set(String(s.id), s));
-      searchCardCache = Array.from(cards).map(card => {
-        const id = card.getAttribute('data-id');
-        const s = sitesById.get(String(id)) || {};
+      searchCardCache = (window.IORI_SITES || []).map(s => {
         const text = (s.searchText || [s.nameHtml, s.urlHtml, s.catalogHtml, s.descHtml]
           .map(v => String(v || '').toLowerCase()).join('\0'));
-        return { el: card, text };
+        return { id: String(s.id), text };
       });
       return searchCardCache;
+    }
+
+    // 恢复默认分类视图（与 SSR 渲染的分类一致；「全部」tab 隐藏时回到默认分类）
+    function restoreDefaultView() {
+      const ssrCatalogId = window.IORI_LAYOUT_CONFIG?.ssrCatalogId;
+      const controller = Home.cardController;
+      if (!controller) return;
+
+      if (ssrCatalogId && ssrCatalogId !== 'all') {
+        const sites = controller.getSitesForCatalog(ssrCatalogId);
+        controller.setActiveCatalogId(ssrCatalogId);
+        controller.renderSites(sites);
+        Home.updateHeading?.(null, null, sites.length);
+      } else {
+        const allSites = window.IORI_SITES || [];
+        controller.setActiveCatalogId(null);
+        controller.renderSites(allSites);
+        Home.updateHeading?.(null, null, allSites.length);
+      }
+    }
+
+    // 应用本地搜索过滤：关键词非空时切到全量视图再过滤，清空时恢复默认视图
+    function applyLocalSearchFilter(keyword) {
+      const normalizedKeyword = String(keyword || '').toLowerCase().trim();
+      const controller = Home.cardController;
+      const allSites = window.IORI_SITES || [];
+
+      // 进入搜索：确保网格渲染全量书签（否则默认分类下搜索不到其他分类）
+      if (normalizedKeyword && !isSearchView) {
+        isSearchView = true;
+        controller?.setActiveCatalogId(null);
+        controller?.renderSites(allSites);
+      }
+      // 清空搜索：恢复默认分类视图
+      if (!normalizedKeyword && isSearchView) {
+        isSearchView = false;
+        restoreDefaultView();
+        updateHeading('');
+        updateSearchHint(0, '');
+        return;
+      }
+
+      if (!normalizedKeyword) {
+        updateHeading('');
+        updateSearchHint(0, '');
+        return;
+      }
+
+      const cached = getSearchCardCache();
+      // 按 data-id 匹配卡片（全量渲染后所有书签都在 DOM）
+      const cards = sitesGrid ? Array.from(sitesGrid.querySelectorAll('.site-card')) : [];
+      const cacheById = new Map(cached.map(c => [c.id, c.text]));
+
+      let visibleCount = 0;
+      cards.forEach(card => {
+        const id = card.getAttribute('data-id');
+        const text = cacheById.get(String(id)) || '';
+        const matches = text.includes(normalizedKeyword);
+        card.classList.toggle('hidden', !matches);
+        if (matches) visibleCount++;
+        highlightMatches(card, normalizedKeyword);
+      });
+
+      updateHeading(normalizedKeyword);
+      updateNoResultState(visibleCount);
+      updateSearchHint(visibleCount, normalizedKeyword);
+    }
+
+    // 全站搜索提示：搜索时显示「已在全部 N 个书签中搜索」，清空时隐藏
+    function updateSearchHint(visibleCount, keyword) {
+      const hint = document.getElementById('searchScopeHint');
+      if (!hint) return;
+      if (!keyword) {
+        hint.classList.add('hidden');
+        return;
+      }
+      const total = (window.IORI_SITES || []).length;
+      hint.textContent = `🔍 已在全部 ${total} 个书签中搜索，命中 ${visibleCount} 条`;
+      hint.classList.remove('hidden');
     }
 
     function getCurrentLocalSearchKeyword() {
@@ -37,22 +113,6 @@
         if (keyword) return keyword;
       }
       return '';
-    }
-
-    function applyLocalSearchFilter(keyword) {
-      const normalizedKeyword = String(keyword || '').toLowerCase().trim();
-      const cached = getSearchCardCache();
-
-      let visibleCount = 0;
-      cached.forEach(({ el, text }) => {
-        const matches = normalizedKeyword === '' || text.includes(normalizedKeyword);
-        el.classList.toggle('hidden', !matches);
-        if (matches) visibleCount++;
-        highlightMatches(el, normalizedKeyword);
-      });
-
-      updateHeading(normalizedKeyword);
-      updateNoResultState(visibleCount);
     }
 
     // 无结果空状态：搜索无命中时展示提示（不会在「全部」无书签时误报）
@@ -185,6 +245,9 @@
     Home.clearSearchCardCache = clearSearchCardCache;
     Home.reapplyLocalSearchFilter = reapplyLocalSearchFilter;
     Home.updateHeading = updateHeading;
+    Home.exitSearchView = function () {
+      isSearchView = false;
+    };
 
     if (engineOptions.length > 0) {
       currentSearchEngine = localStorage.getItem('search_engine') || 'local';
