@@ -7,6 +7,7 @@ import {
   clearHomeCache,
   getSessionToken,
   isAdminAuthenticated,
+  markHomeCacheDirty,
   validateCsrfToken,
   validateOrigin,
 } from '../functions/_middleware.js';
@@ -141,4 +142,32 @@ test('clearHomeCache deletes only versioned home cache keys', async () => {
   ]);
   assert.equal(kv.store.get('home_html_public'), 'legacy-public');
   assert.equal(kv.store.get('home_html_private'), 'legacy-private');
+});
+
+test('markHomeCacheDirty is idempotent: repeated marks do not multiply KV writes', async () => {
+  // 连续多次写操作（如批量分组/编辑）在首页重渲染前反复 mark，
+  // 幂等化后只应在第一次真正写 KV（public+private 各 1 次 put）。
+  const kv = createKv();
+  let putCount = 0;
+  kv.put = async (key, value) => {
+    putCount++;
+    kv.store.set(key, value);
+  };
+  const env = { NAV_AUTH: kv };
+
+  // 第一次 mark：public + private 都写
+  await markHomeCacheDirty(env, 'all');
+  const afterFirst = putCount;
+  assert.equal(afterFirst, 2, `期望 2 次 put，实际 ${afterFirst}`);
+
+  // 之后连续 mark 多次（模拟密集操作）：不应再产生新的 put
+  await markHomeCacheDirty(env, 'all');
+  await markHomeCacheDirty(env, 'all');
+  await markHomeCacheDirty(env, 'all');
+  assert.equal(putCount, 2, `幂等后 put 总数应保持 2，实际 ${putCount}`);
+
+  // 清掉后再次 mark 才会重新写入
+  await env.NAV_AUTH.delete(`home_dirty_public_${HOME_CACHE_VERSION}`);
+  await markHomeCacheDirty(env, 'public');
+  assert.equal(putCount, 3, `清除后 public 应补写 1 次，实际 ${putCount}`);
 });

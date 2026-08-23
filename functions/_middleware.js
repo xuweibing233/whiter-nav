@@ -84,7 +84,6 @@ export async function clearHomeCache(env, scope = 'all') {
 export async function markHomeCacheDirty(env, scope = 'all') {
   try {
     const keys = [];
-    const dirtyValue = crypto.randomUUID();
 
     if (scope === 'all' || scope === 'public') {
       keys.push(getHomeDirtyKey('public'));
@@ -94,9 +93,14 @@ export async function markHomeCacheDirty(env, scope = 'all') {
       keys.push(getHomeDirtyKey('private'));
     }
 
-    await Promise.all(
-      keys.map(key => env.NAV_AUTH.put(key, dirtyValue, { expirationTtl: HOME_CACHE_TTL }))
-    );
+    // 幂等化：dirty 标记已存在说明首页还未按最新数据重渲染（连续编辑/分组场景
+    // 会在下次渲染前反复 mark）——直接复用现有标记，避免每次操作都重复 put。
+    // 连续 N 次写操作的 dirty 写入从 2N 次降到 ≈2 次，显著降低 KV put 配额消耗。
+    await Promise.all(keys.map(async (key) => {
+      const existing = await env.NAV_AUTH.get(key);
+      if (existing !== null) return;
+      await env.NAV_AUTH.put(key, crypto.randomUUID(), { expirationTtl: HOME_CACHE_TTL });
+    }));
   } catch (e) {
     console.error('Failed to mark home cache dirty:', e);
   }
