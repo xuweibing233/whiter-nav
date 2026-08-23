@@ -45,6 +45,12 @@ AI_REQUEST_DELAY = "1500"
 TURNSTILE_SITE_KEY = ""
 TURNSTILE_SECRET_KEY = ""
 
+# 可选：GitHub 备份（后台「推送备份到 GitHub」/ 定时任务使用）
+# GITHUB_REPO 格式：用户名/仓库名（建议私有仓库）
+# GITHUB_TOKEN 请通过 Cloudflare Pages 项目设置 → 变量和机密 → 添加机密配置，
+# 不要写在这个文件里（会被提交）。Token 需要该仓库 Contents 读写权限。
+GITHUB_REPO = ""
+
 # Optional: enable if you bind Cloudflare Workers AI for description generation.
 # [ai]
 # binding = "AI"

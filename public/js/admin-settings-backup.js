@@ -322,6 +322,42 @@
     }
   }
 
+  // GitHub 备份：独立于 WebDAV，直接推送书签 JSON 到配置的私有仓库
+  async function runGithubBackup() {
+    const btn = document.getElementById('githubBackupBtn');
+    const statusEl = document.getElementById('githubBackupStatus');
+    if (!btn || !statusEl) return;
+
+    const show = (msg, type) => {
+      statusEl.style.display = 'block';
+      statusEl.className = `form-hint ${type || ''}`;
+      statusEl.textContent = msg;
+    };
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> 推送中...';
+    show('正在推送备份到 GitHub...');
+
+    try {
+      const res = await fetch('/api/backup/github', { method: 'POST' });
+      const data = await res.json();
+      if (data.code === 200) {
+        show(`✅ ${data.message || '备份已推送'}`);
+        window.showMessage?.('已推送到 GitHub', 'success');
+      } else {
+        show(`❌ ${data.message || '推送失败'}`);
+        window.showMessage?.(data.message || '推送失败', 'error');
+      }
+    } catch (e) {
+      show(`❌ 推送失败: ${e.message || '网络错误'}`);
+      window.showMessage?.('推送失败', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+
   function init() {
     const refs = getBackupRefs();
     if (!refs.backupBtn) return false;
@@ -344,6 +380,7 @@
     refs.deleteConfirmModal?.addEventListener('click', event => {
       if (event.target === refs.deleteConfirmModal) closeConfirmModal();
     });
+    document.getElementById('githubBackupBtn')?.addEventListener('click', runGithubBackup);
     return true;
   }
 
@@ -354,6 +391,7 @@
     clearWebdavPassword,
     requestClearWebdavPassword,
     runBackup,
+    runGithubBackup,
     fetchBackupList,
     restoreBackup,
     deleteBackup,

@@ -209,6 +209,9 @@ npx wrangler d1 execute book --local --file=schema.sql
 | `WORKERS_AI_MODEL` | `@cf/google/gemma-4-26b-a4b-it` | Workers AI 模型兜底；后台 AI 设置中保存的模型优先 |
 | `TURNSTILE_SITE_KEY` | 空 | Cloudflare Turnstile 站点密钥；与 `TURNSTILE_SECRET_KEY` 同时配置后启用后台登录与公开投稿人机验证 |
 | `TURNSTILE_SECRET_KEY` | 空 | Cloudflare Turnstile 机密密钥；与 `TURNSTILE_SITE_KEY` 同时配置后启用后台登录与公开投稿人机验证 |
+| `GITHUB_REPO` | 空 | GitHub 备份目标仓库（如 `用户名/仓库名`）；配合 `GITHUB_TOKEN` 机密使用 |
+| `GITHUB_BRANCH` | `main` | GitHub 备份推送的分支 |
+| `GITHUB_TOKEN` | 空（机密） | GitHub 私有仓库写入 Token（需该仓库 Contents 读写权限），作为机密变量配置 |
 
 > `DISPLAY_CATEGORY` 已废弃，当前版本不会读取该变量。
 
@@ -245,6 +248,19 @@ npx wrangler d1 execute book --local --file=schema.sql
 导入时同一 URL 只会保留一条（比对时会忽略末尾斜杠，`https://example.com/` 与 `https://example.com` 视为同一个）。选择覆盖已有书签时，原有的排序值会保留，不会被打乱。
 
 > 💡 **自动补全图标**：若导入的书签没有携带图标（如浏览器导出的 HTML 未包含 `icon` 属性），系统会自动根据 URL 生成站点图标——GitHub 项目自动使用仓库 Owner 头像，普通网站使用 favicon 服务。
+
+### 数据备份（GitHub）
+
+除手动「导出」外，可配置将完整备份（分类 + 书签，含私密内容）自动推送到 **GitHub 私有仓库**：
+
+1. 创建私有仓库（如 `nav-backup`），生成一个只读/只对该仓库的 Fine-grained Token（`Contents: Read and write` 权限）。
+2. 在 Cloudflare Pages 项目设置 → 变量和机密中配置：
+   - `GITHUB_REPO`：`用户名/仓库名`（明文变量）
+   - `GITHUB_BRANCH`：默认 `main`（可选）
+   - `GITHUB_TOKEN`：Token（**机密**变量）
+3. 配置后，后台「备份」设置页会出现「推送备份到 GitHub」按钮，可手动一键推送；如需定时自动备份，在 Pages 项目配置 Cron Trigger（如 `0 3 1,15 * *` 即每月 1 日、15 日凌晨 3 点推送）。
+
+备份文件名为 `bookmark-backup.json`，GitHub 会保留每次推送的提交历史，即为多版本快照。
 
 ### 方式二：公共书签库
 

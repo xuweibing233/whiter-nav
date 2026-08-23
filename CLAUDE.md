@@ -131,6 +131,13 @@ wrangler.toml             # 已 gitignore，本地需自填 D1/KV id
 可选环境变量：`ENABLE_PUBLIC_SUBMISSION`、`SITE_NAME`、`SITE_DESCRIPTION`、`FOOTER_TEXT`、`ICON_API`、`AI_REQUEST_DELAY`。
 后台凭据通过 KV 条目 `admin_username` / `admin_password` 配置。
 
+### GitHub 备份（可选）
+
+- 后端逻辑：`functions/lib/github-backup.js`（共享）+ `functions/api/backup/github.js`（手动）+ `functions/_scheduled.js`（Cron）
+- 环境变量：`GITHUB_REPO`（如 `用户名/仓库名`）、`GITHUB_BRANCH`（默认 `main`）、`GITHUB_TOKEN`（机密，需该仓库 Contents 读写权限）
+- 产物：私有仓库根目录 `bookmark-backup.json`，每次推送留一个 git commit（多版本快照）
+- 手动：后台「备份」设置页「推送备份到 GitHub」按钮；定时：Pages 项目配置 Cron Trigger
+
 ## 中文支持
 
 注释、用户面文案、commit message 均可使用中文，与现有风格保持一致。

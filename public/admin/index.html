@@ -1498,6 +1498,16 @@
 
             <div class="batch-actions-section" style="margin-top: 1rem;">
               <div class="bulk-action-box">
+                <p class="form-hint">将分类与书签（含私密内容）的整体备份推送到 GitHub 私有仓库 <code>bookmark-backup.json</code>。需先在 Pages 项目变量中配置 <code>GITHUB_TOKEN</code>（私有仓库写权限）与 <code>GITHUB_REPO</code>（如 <code>用户名/仓库名</code>）。既支持手动一键推送，也已配置定时自动推送。</p>
+                <button id="githubBackupBtn" class="button-secondary">
+                  <span>🐙</span> 推送备份到 GitHub
+                </button>
+                <p id="githubBackupStatus" class="form-hint" style="display: none;"></p>
+              </div>
+            </div>
+
+            <div class="batch-actions-section" style="margin-top: 1rem;">
+              <div class="bulk-action-box">
                 <p class="form-hint">从 WebDAV 拉取最近 10 次备份，选择一个后会进入导入预览，可选择是否覆盖已存在的书签。</p>
                 <button id="webdavListBtn" class="button-secondary">
                   <span>🕑</span> 获取备份
@@ -1767,7 +1777,7 @@
   <script src="/js/admin-settings-favicon-upload.js?v=084bd308"></script>
   <script src="/js/admin-settings-ai.js?v=cc131031"></script>
   <script src="/js/admin-settings-backup-ui.js?v=190ef154"></script>
-  <script src="/js/admin-settings-backup.js?v=33b864d8"></script>
+  <script src="/js/admin-settings-backup.js?v=9aca5268"></script>
   <script src="/js/admin-settings.js?v=093181fb"></script>
   <script src="/js/admin-import-export.js?v=b1b28f40"></script>
 </body>
