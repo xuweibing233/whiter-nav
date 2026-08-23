@@ -18,6 +18,41 @@ function extractDomainFromUrl(rawUrl) {
   }
 }
 
+// 从 favicon 服务 URL 中提取「目标站点域名」（优先取 query/path 里真正要图标的网址）
+// faviconsnap:  ?url=<target>       google: ?domain=<target>
+// favicon.im:   /favicon/<target>  faviconextractor: /favicon/<target>
+function extractFaviconTargetDomain(faviconUrl) {
+  try {
+    const parsed = new URL(faviconUrl);
+    const host = parsed.hostname.toLowerCase();
+
+    if (host.includes('faviconsnap.com')) {
+      const target = parsed.searchParams.get('url');
+      if (target) return extractDomainFromUrl(target) || target.replace(/^www\./, '');
+    }
+    if (host.includes('google.com')) {
+      const domain = parsed.searchParams.get('domain');
+      if (domain) return domain.replace(/^www\./, '');
+    }
+    if (host.includes('favicon.im') || host.includes('faviconextractor.com')) {
+      // path 形如 /favicon/<target>?larger=true 或 /<target>?larger=true
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      let target = '';
+      if (host.includes('faviconextractor.com')) {
+        const index = segments.findIndex(s => s.toLowerCase() === 'favicon');
+        if (index !== -1 && segments[index + 1]) target = segments[index + 1];
+      } else {
+        // favicon.im: 第一个非空 path 段就是域名
+        target = segments[0] || '';
+      }
+      if (target) return decodeURIComponent(target).replace(/^www\./, '');
+    }
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 // 将 logo URL 归一化为本地代理地址；用户自填的 logo 保留原样
 function resolveLogoProxyUrl(logoUrl, siteUrl) {
   if (!logoUrl) return '';
@@ -25,8 +60,9 @@ function resolveLogoProxyUrl(logoUrl, siteUrl) {
 
   const isFaviconService = FAVICON_SERVICE_PATTERNS.some(pattern => pattern.test(logoUrl));
   if (isFaviconService) {
-    // 从站点 URL 提取域名（更可靠），失败时回退从 logo URL 提取
-    const domain = extractDomainFromUrl(siteUrl) || extractDomainFromUrl(logoUrl);
+    // 从 logo（favicon 服务 URL）本身提取目标域名；
+    // 例如 faviconsnap 的 url= 参数指向哪个站就用哪个站，而不是书签 URL 的域名
+    const domain = extractFaviconTargetDomain(logoUrl) || extractDomainFromUrl(siteUrl);
     if (domain) return `/api/icon?url=${encodeURIComponent(domain)}`;
   }
   return logoUrl;
