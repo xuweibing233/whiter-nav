@@ -268,6 +268,7 @@ npx wrangler d1 execute book --local --file=schema.sql
 - 修改了 `public/css/tailwind.css` 但样式未生效：先执行 `npm run build:css` 再重新部署。
 - 上传壁纸/Favicon 提示「R2 bucket not configured」：确认已创建 R2 存储桶并绑定为 `NAV_IMG`，绑定保存后需重新部署一次才生效。
 - 上传壁纸大于提示的大小限制：壁纸默认限 10MB，Favicon 默认限 512KB，请压缩图片后重试。
+- KV 迁移后清理旧数据：图标缓存已改为边缘缓存（不再读写 KV），壁纸/Favicon 已迁移到 R2。若在控制台看到 KV 中残留 `wallpaper_*`、`site_favicon_*`、`icon_*` 等前缀的键，可安全删除以释放 KV 存储与 key 数量（不影响已有功能）。
 
 ---
 
