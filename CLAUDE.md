@@ -126,6 +126,7 @@ wrangler.toml             # 已 gitignore，本地需自填 D1/KV id
 | :--- | :--- | :--- |
 | `NAV_DB` | D1 数据库（默认名 `book`） | ✅ |
 | `NAV_AUTH` | KV（同时存 session / CSRF / 限流计数器 / settings 缓存 / home HTML 缓存） | ✅ |
+| `NAV_IMG` | R2 存储桶（壁纸 / Favicon 上传存储；使用上传功能时必需） | 条件 |
 
 可选环境变量：`ENABLE_PUBLIC_SUBMISSION`、`SITE_NAME`、`SITE_DESCRIPTION`、`FOOTER_TEXT`、`ICON_API`、`AI_REQUEST_DELAY`。
 后台凭据通过 KV 条目 `admin_username` / `admin_password` 配置。
