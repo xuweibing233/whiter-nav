@@ -1,6 +1,6 @@
 // functions/api/config/import.js
 import { isAdminAuthenticated, errorResponse, jsonResponse, normalizeSortOrder, markHomeCacheDirty } from '../../_middleware';
-import { getUrlMatchCandidates, normalizeUrlForStorage } from '../../lib/utils';
+import { getUrlMatchCandidates, normalizeUrlForStorage, buildFaviconUrl } from '../../lib/utils';
 import {
     normalizeBookmarkDesc,
     normalizeBookmarkLogo,
@@ -373,8 +373,8 @@ export async function onRequestPost(context) {
 
         let sanitizedLogo = logoResult.value;
         if ((!sanitizedLogo || sanitizedLogo.startsWith('data:image')) && sanitizedUrl.startsWith('http')) {
-            const domain = sanitizedUrl.replace(/^https?:\/\//, '').split('/')[0];
-            sanitizedLogo = `${iconAPI}${domain}`;
+            // 复用 buildFaviconUrl：GitHub 项目自动用 owner 头像，普通网站用 favicon 服务
+            sanitizedLogo = buildFaviconUrl(sanitizedUrl, '', iconAPI);
         }
         if (!sanitizedLogo) sanitizedLogo = null;
 
