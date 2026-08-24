@@ -30,6 +30,13 @@ function createStatement(sql, settingsRows) {
             { id: 1, catelog: '开发工具', sort_order: 1, parent_id: 0 },
             { id: 2, catelog: '设计资源', sort_order: 2, parent_id: 0 },
             { id: 3, catelog: '效率办公', sort_order: 3, parent_id: 0 },
+            { id: 4, catelog: 'AI 工具', sort_order: 4, parent_id: 0 },
+            { id: 5, catelog: '影视娱乐', sort_order: 5, parent_id: 0 },
+            { id: 6, catelog: '学习教程', sort_order: 6, parent_id: 0 },
+            { id: 7, catelog: '云存储', sort_order: 7, parent_id: 0 },
+            { id: 8, catelog: '社交通讯', sort_order: 8, parent_id: 0 },
+            { id: 9, catelog: '购物比价', sort_order: 9, parent_id: 0 },
+            { id: 10, catelog: '新闻资讯', sort_order: 10, parent_id: 0 },
           ],
         };
       }

@@ -472,6 +472,21 @@ body:not(.app-ready) #sidebar a[href="?catalog=all"] {
   box-sizing: border-box;
 }
 
+/* 防 FOUC：单行模式下 SSR 输出的导航是全量平铺（含管理员可见的私密分类），
+   JS 折叠成「N + 更多」前先隐藏；checkOverflow 首次执行后移除此类。
+   兜底：JS 加载失败时 1.5s 后由动画强制显示，避免导航永久不可见。 */
+#horizontalCategoryNav.nav-collapse-pending {
+  visibility: hidden;
+  opacity: 0;
+  animation: nav-collapse-fallback 0s 1.5s forwards;
+}
+@keyframes nav-collapse-fallback {
+  to {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
 #horizontalCategoryNav {
   width: 100%;
   min-width: 0;

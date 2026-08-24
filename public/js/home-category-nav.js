@@ -86,6 +86,12 @@
         // 「更多」打开时不要 reset，否则会拆掉弹出层并关菜单
         if (!dropdown.classList.contains('hidden')) return;
 
+        // 防闪烁：首次布局计算完成后立即解除「折叠前隐藏」状态
+        // （SSR 输出的导航是全量平铺，JS 折叠前会闪现所有分类；登录态含私密分类时更明显）
+        if (navContainer.classList.contains('nav-collapse-pending')) {
+          navContainer.classList.remove('nav-collapse-pending');
+        }
+
         resetNav();
         // 必须 visible，否则多级 hover 下拉与 #horizontalMoreDropdown 会被裁切
         navContainer.style.overflow = 'visible';

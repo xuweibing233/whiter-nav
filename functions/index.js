@@ -349,7 +349,7 @@ export async function onRequest(context) {
           </div>`;
   const horizontalCategoryNavHtml = `
       <div class="${horizontalCategoryNavShellClass}">
-        <div id="horizontalCategoryNav" class="flex ${horizontalCategoryNavWrapClass} ${horizontalCategoryNavJustifyClass} items-center gap-3 ${horizontalCategoryNavOverflowClass} ${horizontalCategoryNavFlowClass} transition-all duration-300">
+        <div id="horizontalCategoryNav" class="flex ${horizontalCategoryNavWrapClass} ${horizontalCategoryNavJustifyClass} items-center gap-3 ${horizontalCategoryNavOverflowClass} ${horizontalCategoryNavFlowClass} transition-all duration-300${categoryFlow === 'single_line' ? ' nav-collapse-pending' : ''}">
           ${horizontalCatalogMarkup}
           ${horizontalMoreHtml}
         </div>
